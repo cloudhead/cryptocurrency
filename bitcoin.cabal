@@ -1,0 +1,65 @@
+name:                bitcoin
+version:             0.1.0.0
+homepage:            https://github.com/cloudhead/bitcoin
+license:             BSD3
+license-file:        LICENSE
+author:              Alexis Sellier
+maintainer:          alexis@cloudhead.io
+copyright:           2017 Alexis Sellier
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Bitcoin
+                     , Bitcoin.Crypto
+                     , Bitcoin.Network
+                     , Bitcoin.Log
+  build-depends:       base                  >= 4.7 && < 5
+                     , cryptonite            == 0.21
+                     , fast-logger           == 2.4.10
+                     , memory                == 0.14.6
+                     , merkle-tree           == 0.1.0.0
+                     , pipes                 == 4.3.4
+                     , pipes-network         == 0.6.4.1
+                     , mtl                   == 2.2.1
+                     , monad-logger          == 0.3.24
+                     , network               == 2.6.3.2
+                     , network-simple        == 0.4.0.5
+                     , binary                == 0.8.3.0
+                     , bytestring            == 0.10.8.1
+                     , base16-bytestring     == 0.1.1.6
+                     , base58-bytestring     == 0.1.0
+                     , stm                   == 2.4.4.1
+                     , async                 == 2.1.1.1
+                     , containers            == 0.5.10.2
+  default-language:    Haskell2010
+  default-extensions:  MultiParamTypeClasses
+                     , FunctionalDependencies
+                     , FlexibleContexts
+                     , NamedFieldPuns
+
+executable bitcoin-exe
+  main-is:             src/Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , bitcoin
+  default-language:    Haskell2010
+
+test-suite bitcoin-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Main.hs
+  other-modules:       Bitcoin.Tests
+  build-depends:       base
+                     , bitcoin
+                     , tasty
+                     , tasty-hunit
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/cloudhead/bitcoin

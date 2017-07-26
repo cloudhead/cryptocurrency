@@ -1,0 +1,17 @@
+resolver: lts-8.18
+
+packages:
+  - '.'
+  - location:
+      git: git@github.com:frasertweedale/hs-merkle-tree
+      commit: b1e97510c8e2cdef0fc3dc8e81b78aa1aeb62749
+    extra-dep: true
+
+extra-deps:
+  - pipes-network-0.6.4.1
+  - base58-bytestring-0.1.0
+  - containers-0.5.10.2
+
+flags: {}
+
+extra-package-dbs: []
