@@ -57,12 +57,23 @@ type Amount = Word64
 type TxId = Digest SHA256
 type Signature = ByteString
 
+newtype Valid a = Valid a
+
 data UTxOutput = UTxOutput
     { utxoTxId   :: TxId
     , utxoIndex  :: Word32
     , utxoSig    :: Signature
     , utxoPubKey :: PublicKey
     } deriving (Eq, Show, Generic)
+
+utxo :: Tx' -> Word32 -> UTxOutput
+utxo tx vout =
+    UTxOutput
+        { utxoTxId   = txDigest tx
+        , utxoIndex  = vout
+        , utxoSig    = undefined
+        , utxoPubKey = undefined
+        }
 
 instance Binary UTxOutput
 
@@ -116,6 +127,7 @@ instance Binary (HashTree.RootHash SHA256) where
 type Bitcoin = Blockchain Tx'
 type Blockchain tx = Seq (Block' tx)
 type Block' tx = Block tx
+type BlockM a = Either Error a
 
 newtype Error = Error String
 
@@ -134,6 +146,21 @@ data Message a =
 instance Binary a => Binary (Message a)
 deriving instance Eq a => Eq (Message a)
 
+class Validate a where
+    validate :: a -> BlockM a
+
+instance Validate (Block a) where
+    validate = validateBlock
+
+instance Validate (Blockchain a) where
+    validate = validateBlockchain
+
+validateBlockchain :: Blockchain a -> Either Error (Blockchain a)
+validateBlockchain bc = Right bc
+
+validateBlock :: Block a -> Either Error (Block a)
+validateBlock blk = Right blk
+
 isGenesisBlock :: Block' a -> Bool
 isGenesisBlock blk =
     (blockPreviousHash . blockHeader) blk == zeroHash
@@ -149,12 +176,18 @@ maxHash = fromJust $
 transaction
     :: [TxInput]
     -> [TxOutput]
-    -> Tx'
+    -> BlockM Tx'
 transaction ins outs =
-    Tx digest ins outs
+    pure $ Tx digest ins outs
   where
     digest = hashlazy (encode tx)
     tx     = Tx () ins outs
+
+coinbase
+    :: [TxOutput]
+    -> BlockM Tx'
+coinbase outs =
+    transaction [] outs
 
 data Env = Env
     { envBlockchain :: IORef (Blockchain Tx')
@@ -206,8 +239,8 @@ broadcastTransaction :: Socket n (Message a) => n -> Tx (Digest SHA256) -> IO ()
 broadcastTransaction net tx = do
     broadcast net (MsgTx tx)
 
-genesisBlock :: [a] -> Block' a
-genesisBlock xs =
+block :: [a] -> BlockM (Block' a)
+block xs = validate $
     Block
         BlockHeader
             { blockIndex        = 0
@@ -217,8 +250,19 @@ genesisBlock xs =
             }
         (Seq.fromList xs)
 
-genesisBlockchain :: Block' a -> Blockchain a
-genesisBlockchain blk = Seq.singleton blk
+genesisBlock :: [a] -> BlockM (Block' a)
+genesisBlock xs = validate $
+    Block
+        BlockHeader
+            { blockIndex        = 0
+            , blockPreviousHash = zeroHash
+            , blockRootHash     = undefined
+            , blockNonce        = undefined
+            }
+        (Seq.fromList xs)
+
+blockchain :: [Block' a] -> BlockM (Blockchain a)
+blockchain blks = validate $ Seq.fromList blks
 
 hashValidation :: Integer -> BlockHeader -> Bool
 hashValidation target bh =
@@ -236,9 +280,9 @@ appendTx :: tx -> Block tx -> Block tx
 appendTx tx blk = blk
     { blockData = blockData blk |> tx }
 
-appendBlock :: Binary a => Seq a -> Blockchain a -> Blockchain a
+appendBlock :: Binary a => Seq a -> Blockchain a -> BlockM (Blockchain a)
 appendBlock dat bc =
-    bc |> new
+    validate $ bc |> new
   where
     prev = Seq.index bc (Seq.length bc - 1)
     new = Block header dat
@@ -255,9 +299,6 @@ appendBlock dat bc =
 blockHash :: (Binary a) => Block a -> Digest SHA256
 blockHash blk =
     hashlazy $ encode blk
-
-validateBlockchain :: Blockchain a -> Either Error ()
-validateBlockchain bc = Right ()
 
 connectToPeers :: Internet a -> [(NS.HostName, NS.ServiceName)] -> IO ()
 connectToPeers net peers =

@@ -7,10 +7,30 @@ import Bitcoin.Crypto
 import Test.Tasty
 import Test.Tasty.HUnit
 import Control.Monad
+import Data.Either (isRight)
 
 tests :: TestTree
 tests = testGroup "Bitcoin tests"
-    [ testCase "Bitcoin" testBitcoin ]
+    [ testCase "Bitcoin" testBitcoin
+    , testCase "Blockchain" testBlockchain ]
+
+testBlockchain :: Assertion
+testBlockchain = do
+    alice@(pk, sk) <- generateKeyPair
+    bob@(pk', sk') <- generateKeyPair
+
+    chain <- pure $ do
+        cb  <- coinbase [(toAddress pk, 1000)]
+        gen <- genesisBlock [cb]
+        blk <- block
+            [ transaction [utxo cb 0]
+                [ (toAddress pk', 600)
+                , (toAddress pk,  400)
+                ]
+            ]
+        blockchain [gen]
+
+    isRight chain @? "Blockchain is valid"
 
 testBitcoin :: Assertion
 testBitcoin = do
