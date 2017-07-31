@@ -22,13 +22,13 @@ testBlockchain = do
     chain <- pure $ do
         cb  <- coinbase [(toAddress pk, 1000)]
         gen <- genesisBlock [cb]
-        blk <- block
+        blk <- block <=< sequence $
             [ transaction [utxo cb 0]
                 [ (toAddress pk', 600)
                 , (toAddress pk,  400)
                 ]
             ]
-        blockchain [gen]
+        blockchain [gen, blk]
 
     isRight chain @? "Blockchain is valid"
 
