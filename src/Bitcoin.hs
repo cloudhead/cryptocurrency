@@ -127,7 +127,7 @@ instance Binary (HashTree.RootHash SHA256) where
 type Bitcoin = Blockchain Tx'
 type Blockchain tx = Seq (Block' tx)
 type Block' tx = Block tx
-type BlockM a = Either Error a
+type ChainM a = Either Error a
 
 newtype Error = Error String
 
@@ -147,7 +147,7 @@ instance Binary a => Binary (Message a)
 deriving instance Eq a => Eq (Message a)
 
 class Validate a where
-    validate :: a -> BlockM a
+    validate :: a -> ChainM a
 
 instance Validate (Block a) where
     validate = validateBlock
@@ -176,7 +176,7 @@ maxHash = fromJust $
 transaction
     :: [TxInput]
     -> [TxOutput]
-    -> BlockM Tx'
+    -> ChainM Tx'
 transaction ins outs =
     pure $ Tx digest ins outs
   where
@@ -185,7 +185,7 @@ transaction ins outs =
 
 coinbase
     :: [TxOutput]
-    -> BlockM Tx'
+    -> ChainM Tx'
 coinbase outs =
     transaction [] outs
 
@@ -239,7 +239,7 @@ broadcastTransaction :: Socket n (Message a) => n -> Tx (Digest SHA256) -> IO ()
 broadcastTransaction net tx = do
     broadcast net (MsgTx tx)
 
-block :: [a] -> BlockM (Block' a)
+block :: [a] -> ChainM (Block' a)
 block xs = validate $
     Block
         BlockHeader
@@ -250,7 +250,7 @@ block xs = validate $
             }
         (Seq.fromList xs)
 
-genesisBlock :: [a] -> BlockM (Block' a)
+genesisBlock :: [a] -> ChainM (Block' a)
 genesisBlock xs = validate $
     Block
         BlockHeader
@@ -261,7 +261,7 @@ genesisBlock xs = validate $
             }
         (Seq.fromList xs)
 
-blockchain :: [Block' a] -> BlockM (Blockchain a)
+blockchain :: [Block' a] -> ChainM (Blockchain a)
 blockchain blks = validate $ Seq.fromList blks
 
 hashValidation :: Integer -> BlockHeader -> Bool
@@ -280,7 +280,7 @@ appendTx :: tx -> Block tx -> Block tx
 appendTx tx blk = blk
     { blockData = blockData blk |> tx }
 
-appendBlock :: Binary a => Seq a -> Blockchain a -> BlockM (Blockchain a)
+appendBlock :: Binary a => Seq a -> Blockchain a -> ChainM (Blockchain a)
 appendBlock dat bc =
     validate $ bc |> new
   where
