@@ -18,6 +18,7 @@ import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, diges
 import           Crypto.Hash.Tree (HashTree)
 import qualified Crypto.Hash.Tree as HashTree
 import           Crypto.Error (CryptoFailable(CryptoPassed))
+import           Crypto.Number.Serialize (os2ip)
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.Async (async)
@@ -80,6 +81,9 @@ instance Binary UTxOutput
 type TxInput = UTxOutput
 type TxOutput = (Address, Amount)
 
+txoAmount :: TxOutput -> Amount
+txoAmount (_, amount) = amount
+
 data Tx digest = Tx
     { txDigest    :: digest
     , txInputs    :: [UTxOutput]
@@ -109,6 +113,11 @@ emptyBlockHeader :: BlockHeader
 emptyBlockHeader = BlockHeader 0 zeroHash (HashTree.RootHash 0 zeroHash) 0
 
 instance Binary BlockHeader
+
+type Difficulty = Integer
+
+difficulty :: BlockHeader -> Difficulty
+difficulty bh = os2ip (hashlazy $ encode bh :: Digest SHA256)
 
 data Block a = Block
     { blockHeader :: BlockHeader
@@ -249,6 +258,9 @@ block xs = validate $
             , blockNonce        = undefined
             }
         (Seq.fromList xs)
+
+genesisDifficulty :: Difficulty
+genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 genesisBlock :: [a] -> ChainM (Block' a)
 genesisBlock xs = validate $
