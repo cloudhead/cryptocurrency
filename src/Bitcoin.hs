@@ -21,8 +21,8 @@ import           Crypto.Error (CryptoFailable(CryptoPassed))
 import           Crypto.Number.Serialize (os2ip)
 
 import           Control.Concurrent.STM.TChan
-import           Control.Concurrent.Async (async)
-import           Control.Concurrent (threadDelay)
+import           Control.Concurrent.Async (async, race)
+import           Control.Concurrent (MVar, readMVar, modifyMVar_, newMVar, threadDelay)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
@@ -198,27 +198,55 @@ coinbase
 coinbase outs =
     transaction [] outs
 
+newtype Mempool tx = Mempool { fromMempool :: Seq tx }
+    deriving (Show, Monoid)
+
+addTx :: tx -> Mempool tx -> Mempool tx
+addTx tx (Mempool txs) = Mempool (txs |> tx)
+
+readTransactions :: MonadReader Env m => m (Seq Tx')
+readTransactions = undefined
+
+findBlock :: (Monad m, Traversable t) => t tx -> m (Block tx)
+findBlock = undefined
+
+listenForBlock :: MonadIO m => m (Block tx)
+listenForBlock = undefined
+
+proposeBlock :: MonadIO m => Block tx -> m ()
+proposeBlock = undefined
+
+updateMempool :: (MonadReader Env m, Traversable t) => t tx -> m ()
+updateMempool = undefined
+
+mine :: (MonadReader Env m, MonadLogger m, MonadIO m) => m ()
+mine = forever $ do
+    txs <- readTransactions
+    result <- io $ race (findBlock txs) (listenForBlock)
+    case result of
+        Left foundBlock ->
+            proposeBlock foundBlock
+        Right receivedBlock ->
+            updateMempool (blockData receivedBlock)
+
 data Env = Env
-    { envBlockchain :: IORef (Blockchain Tx')
+    { envBlockchain :: MVar (Blockchain Tx')
+    , envMempool    :: MVar (Mempool Tx')
     , envLogger     :: Logger
     }
 
 newEnv :: IO Env
 newEnv = do
-    bc <- newIORef mempty
+    bc <- newMVar mempty
+    mp <- newMVar mempty
     pure $ Env
         { envBlockchain = bc
+        , envMempool    = mp
         , envLogger     = undefined
         }
 
 io :: MonadIO m => IO a -> m a
 io = liftIO
-
-withCurrentBlock :: (Block a -> Block a) -> Blockchain a -> Blockchain a
-withCurrentBlock f bc =
-    Seq.adjust' f index bc
-  where
-    index = Seq.length bc - 1
 
 startNode
     :: (MonadReader Env m, MonadLogger m, MonadIO m)
@@ -237,8 +265,8 @@ startNode port peers = do
         case msg of
             MsgTx tx -> do
                 logInfoN "Tx"
-                bc <- asks envBlockchain
-                io $ modifyIORef bc (withCurrentBlock $ appendTx tx)
+                mp <- asks envMempool
+                io $ modifyMVar_ mp (pure . addTx tx)
             MsgBlock blk ->
                 logInfoN "Block"
             MsgPing ->
@@ -287,10 +315,6 @@ proofOfWork validate bh | validate bh =
     bh
 proofOfWork validate bh@BlockHeader { blockNonce } =
     proofOfWork validate bh { blockNonce = blockNonce + 1 }
-
-appendTx :: tx -> Block tx -> Block tx
-appendTx tx blk = blk
-    { blockData = blockData blk |> tx }
 
 appendBlock :: Binary a => Seq a -> Blockchain a -> ChainM (Blockchain a)
 appendBlock dat bc =
