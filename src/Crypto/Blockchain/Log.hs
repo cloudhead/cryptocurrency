@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
-module Bitcoin.Log
+module Crypto.Blockchain.Log
     ( LogLevel
     , Logger
     , logL

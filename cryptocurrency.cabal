@@ -16,10 +16,10 @@ library
   exposed-modules:     Bitcoin
                      , Bitcoin.Crypto
                      , Bitcoin.Network
-                     , Bitcoin.Log
                      , Bitcoin.Types
                      , Bitcoin.Tx
                      , Crypto.Blockchain
+                     , Crypto.Blockchain.Log
                      , Crypto.Blockchain.Hash
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21

@@ -62,7 +62,7 @@ instance Binary a => Binary (Tx a)
 transaction
     :: [TxInput]
     -> [TxOutput]
-    -> ChainM Tx'
+    -> Either Error Tx'
 transaction ins outs =
     pure $ Tx digest ins outs
   where
@@ -71,7 +71,7 @@ transaction ins outs =
 
 coinbase
     :: [TxOutput]
-    -> ChainM Tx'
+    -> Either Error Tx'
 coinbase outs =
     transaction [] outs
 

@@ -1,12 +1,12 @@
 module Bitcoin where
 
 import           Bitcoin.Network
-import           Bitcoin.Log
 import           Bitcoin.Crypto
 import           Bitcoin.Tx
 import           Bitcoin.Types
 
 import           Crypto.Blockchain
+import           Crypto.Blockchain.Log
 
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Hash.Tree (HashTree)
@@ -44,6 +44,7 @@ import           Debug.Trace
 newtype Valid a = Valid a
 
 type Bitcoin = Blockchain Tx'
+
 data Message a =
       MsgTx Tx'
     | MsgBlock (Block a)
@@ -54,7 +55,7 @@ instance Binary a => Binary (Message a)
 deriving instance Eq a => Eq (Message a)
 
 class Validate a where
-    validate :: a -> ChainM a
+    validate :: a -> Either Error a
 
 instance Validate (Block a) where
     validate = validateBlock
@@ -76,58 +77,11 @@ maxHash :: HashAlgorithm a => Digest a
 maxHash = fromJust $
     digestFromByteString (ByteArray.replicate (hashDigestSize SHA256) maxBound :: ByteString)
 
-newtype Mempool tx = Mempool { fromMempool :: Seq tx }
-    deriving (Show, Monoid)
-
-addTx :: tx -> Mempool tx -> Mempool tx
-addTx tx (Mempool txs) = Mempool (txs |> tx)
-
-readTransactions :: MonadReader Env m => m (Seq Tx')
-readTransactions = undefined
-
-findBlock :: (Monad m, Traversable t) => t tx -> m (Block tx)
-findBlock = undefined
-
-listenForBlock :: MonadIO m => m (Block tx)
-listenForBlock = undefined
-
-proposeBlock :: MonadIO m => Block tx -> m ()
-proposeBlock = undefined
-
-updateMempool :: (MonadReader Env m, Traversable t) => t tx -> m ()
-updateMempool = undefined
-
-mineBlocks :: (MonadReader Env m, MonadLogger m, MonadIO m) => m ()
-mineBlocks = forever $ do
-    txs <- readTransactions
-    result <- io $ race (findBlock txs) (listenForBlock)
-    case result of
-        Left foundBlock ->
-            proposeBlock foundBlock
-        Right receivedBlock ->
-            updateMempool (blockData receivedBlock)
-
-data Env = Env
-    { envBlockchain :: MVar (Blockchain Tx')
-    , envMempool    :: MVar (Mempool Tx')
-    , envLogger     :: Logger
-    }
-
-newEnv :: IO Env
-newEnv = do
-    bc <- newMVar mempty
-    mp <- newMVar mempty
-    pure $ Env
-        { envBlockchain = bc
-        , envMempool    = mp
-        , envLogger     = undefined
-        }
-
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
 startNode
-    :: (MonadReader Env m, MonadLogger m, MonadIO m)
+    :: (MonadReader (Env Tx') m, MonadLogger m, MonadIO m)
     => NS.ServiceName
     -> [(NS.HostName, NS.ServiceName)]
     -> m ()
@@ -154,7 +108,7 @@ broadcastTransaction :: Socket n (Message a) => n -> Tx (Digest SHA256) -> IO ()
 broadcastTransaction net tx = do
     broadcast net (MsgTx tx)
 
-block :: [a] -> ChainM (Block' a)
+block :: [a] -> Either Error (Block' a)
 block xs = validate $
     Block
         BlockHeader
@@ -169,7 +123,7 @@ block xs = validate $
 genesisDifficulty :: Difficulty
 genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-genesisBlock :: [a] -> ChainM (Block' a)
+genesisBlock :: [a] -> Either Error (Block' a)
 genesisBlock xs = validate $
     Block
         BlockHeader
@@ -181,7 +135,7 @@ genesisBlock xs = validate $
             }
         (Seq.fromList xs)
 
-blockchain :: [Block' a] -> ChainM (Blockchain a)
+blockchain :: [Block' a] -> Either Error (Blockchain a)
 blockchain blks = validate $ Seq.fromList blks
 
 hashValidation :: Integer -> BlockHeader -> Bool
@@ -196,7 +150,7 @@ proofOfWork validate bh | validate bh =
 proofOfWork validate bh@BlockHeader { blockNonce } =
     proofOfWork validate bh { blockNonce = blockNonce + 1 }
 
-appendBlock :: Binary a => Seq a -> Blockchain a -> ChainM (Blockchain a)
+appendBlock :: Binary a => Seq a -> Blockchain a -> Either Error (Blockchain a)
 appendBlock dat bc =
     validate $ bc |> new
   where
