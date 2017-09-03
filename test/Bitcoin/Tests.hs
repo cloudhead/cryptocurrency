@@ -4,6 +4,7 @@ module Bitcoin.Tests where
 import Bitcoin
 import Bitcoin.Network
 import Bitcoin.Crypto
+import Bitcoin.Tx
 import Test.Tasty
 import Test.Tasty.HUnit
 import Control.Monad

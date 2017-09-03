@@ -1,18 +1,12 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Bitcoin where
 
 import           Bitcoin.Network
 import           Bitcoin.Log
 import           Bitcoin.Crypto
+import           Bitcoin.Tx
+import           Bitcoin.Types
+
+import           Crypto.Blockchain
 
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Hash.Tree (HashTree)
@@ -47,111 +41,9 @@ import           GHC.Generics (Generic)
 import           GHC.Stack (HasCallStack)
 import           Debug.Trace
 
-instance Binary (Digest SHA256) where
-    put digest =
-        put (convert digest :: ByteString)
-    get =
-        fromJust . digestFromByteString <$> get @ByteString
-
--- | Amount in smallest denomination. Ex: Satoshis.
-type Amount = Word64
-type TxId = Digest SHA256
-type Signature = ByteString
-type Timestamp = Word32
-
 newtype Valid a = Valid a
 
-data UTxOutput = UTxOutput
-    { utxoTxId   :: TxId
-    , utxoIndex  :: Word32
-    , utxoSig    :: Signature
-    , utxoPubKey :: PublicKey
-    } deriving (Eq, Show, Generic)
-
-utxo :: Tx' -> Word32 -> UTxOutput
-utxo tx vout =
-    UTxOutput
-        { utxoTxId   = txDigest tx
-        , utxoIndex  = vout
-        , utxoSig    = undefined
-        , utxoPubKey = undefined
-        }
-
-instance Binary UTxOutput
-
-type TxInput = UTxOutput
-type TxOutput = (Address, Amount)
-
-txoAmount :: TxOutput -> Amount
-txoAmount (_, amount) = amount
-
-data Tx digest = Tx
-    { txDigest    :: digest
-    , txInputs    :: [UTxOutput]
-    , txOutput    :: [TxOutput]
-    } deriving (Eq, Show, Generic)
-
-type Tx' = Tx (Digest SHA256)
-
-transactionFee :: Tx a -> Amount
-transactionFee = undefined
-
-instance Binary a => Binary (Tx a)
-
-data BlockHeader = BlockHeader
-    { blockPreviousHash :: Digest SHA256
-    , blockRootHash     :: HashTree.RootHash SHA256
-    , blockNonce        :: Word32
-    , blockDifficulty   :: Difficulty
-    , blockTimestamp    :: Timestamp
-    } deriving (Show, Generic)
-
-instance Eq BlockHeader where
-    (==) h h' = undefined
-
-emptyBlockHeader :: BlockHeader
-emptyBlockHeader = BlockHeader
-    { blockPreviousHash = zeroHash
-    , blockRootHash = (HashTree.RootHash 0 zeroHash)
-    , blockNonce = 0
-    , blockDifficulty = 0
-    , blockTimestamp = 0
-    }
-
-instance Binary BlockHeader
-
-type Difficulty = Integer
-
-difficulty :: BlockHeader -> Difficulty
-difficulty bh = os2ip (hashlazy $ encode bh :: Digest SHA256)
-
-data Block a = Block
-    { blockHeader :: BlockHeader
-    , blockData   :: Seq a
-    } deriving (Show, Generic)
-
-instance (Binary a) => Binary (Block a)
-deriving instance Eq a => Eq (Block a)
-
-instance Binary (HashTree.RootHash SHA256) where
-    put (HashTree.RootHash n digest) =
-        put n >> put digest
-    get =
-        HashTree.RootHash <$> get <*> get
-
 type Bitcoin = Blockchain Tx'
-type Blockchain tx = Seq (Block' tx)
-type Block' tx = Block tx
-type ChainM a = Either Error a
-
-newtype Error = Error String
-
-newtype Address = Address ByteString
-    deriving (Eq, Show, Binary)
-
-toAddress :: PublicKey -> Address
-toAddress pk = Address . encodeBase58 bitcoinAlphabet . toStrict $ encode pk
-
 data Message a =
       MsgTx Tx'
     | MsgBlock (Block a)
@@ -180,29 +72,9 @@ isGenesisBlock :: Block' a -> Bool
 isGenesisBlock blk =
     (blockPreviousHash . blockHeader) blk == zeroHash
 
-zeroHash :: HashAlgorithm a => Digest a
-zeroHash = fromJust $
-    digestFromByteString (zero (hashDigestSize SHA256) :: ByteString)
-
 maxHash :: HashAlgorithm a => Digest a
 maxHash = fromJust $
     digestFromByteString (ByteArray.replicate (hashDigestSize SHA256) maxBound :: ByteString)
-
-transaction
-    :: [TxInput]
-    -> [TxOutput]
-    -> ChainM Tx'
-transaction ins outs =
-    pure $ Tx digest ins outs
-  where
-    digest = hashlazy (encode tx)
-    tx     = Tx () ins outs
-
-coinbase
-    :: [TxOutput]
-    -> ChainM Tx'
-coinbase outs =
-    transaction [] outs
 
 newtype Mempool tx = Mempool { fromMempool :: Seq tx }
     deriving (Show, Monoid)

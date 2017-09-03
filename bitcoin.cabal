@@ -17,6 +17,10 @@ library
                      , Bitcoin.Crypto
                      , Bitcoin.Network
                      , Bitcoin.Log
+                     , Bitcoin.Types
+                     , Bitcoin.Tx
+                     , Crypto.Blockchain
+                     , Crypto.Blockchain.Hash
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21
                      , fast-logger           == 2.4.10
@@ -40,6 +44,17 @@ library
                      , FunctionalDependencies
                      , FlexibleContexts
                      , NamedFieldPuns
+                     , StandaloneDeriving
+                     , TypeSynonymInstances
+                     , RankNTypes
+                     , StandaloneDeriving
+                     , ScopedTypeVariables
+                     , GeneralizedNewtypeDeriving
+                     , TypeApplications
+                     , DeriveGeneric
+                     , FlexibleInstances
+                     , MultiParamTypeClasses
+                     , OverloadedStrings
 
 executable bitcoin-exe
   main-is:             src/Main.hs
