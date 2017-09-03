@@ -57,6 +57,7 @@ instance Binary (Digest SHA256) where
 type Amount = Word64
 type TxId = Digest SHA256
 type Signature = ByteString
+type Timestamp = Word32
 
 newtype Valid a = Valid a
 
@@ -98,19 +99,24 @@ transactionFee = undefined
 instance Binary a => Binary (Tx a)
 
 data BlockHeader = BlockHeader
-    { blockIndex        :: Integer
-    , blockPreviousHash :: Digest SHA256
+    { blockPreviousHash :: Digest SHA256
     , blockRootHash     :: HashTree.RootHash SHA256
     , blockNonce        :: Word32
+    , blockDifficulty   :: Difficulty
+    , blockTimestamp    :: Timestamp
     } deriving (Show, Generic)
 
 instance Eq BlockHeader where
-    (==) h h' =
-        blockIndex h == blockIndex h' &&
-        blockPreviousHash h == blockPreviousHash h'
+    (==) h h' = undefined
 
 emptyBlockHeader :: BlockHeader
-emptyBlockHeader = BlockHeader 0 zeroHash (HashTree.RootHash 0 zeroHash) 0
+emptyBlockHeader = BlockHeader
+    { blockPreviousHash = zeroHash
+    , blockRootHash = (HashTree.RootHash 0 zeroHash)
+    , blockNonce = 0
+    , blockDifficulty = 0
+    , blockTimestamp = 0
+    }
 
 instance Binary BlockHeader
 
@@ -219,8 +225,8 @@ proposeBlock = undefined
 updateMempool :: (MonadReader Env m, Traversable t) => t tx -> m ()
 updateMempool = undefined
 
-mine :: (MonadReader Env m, MonadLogger m, MonadIO m) => m ()
-mine = forever $ do
+mineBlocks :: (MonadReader Env m, MonadLogger m, MonadIO m) => m ()
+mineBlocks = forever $ do
     txs <- readTransactions
     result <- io $ race (findBlock txs) (listenForBlock)
     case result of
@@ -280,8 +286,9 @@ block :: [a] -> ChainM (Block' a)
 block xs = validate $
     Block
         BlockHeader
-            { blockIndex        = 0
-            , blockPreviousHash = zeroHash
+            { blockPreviousHash = zeroHash
+            , blockDifficulty   = undefined
+            , blockTimestamp    = undefined
             , blockRootHash     = undefined
             , blockNonce        = undefined
             }
@@ -294,8 +301,9 @@ genesisBlock :: [a] -> ChainM (Block' a)
 genesisBlock xs = validate $
     Block
         BlockHeader
-            { blockIndex        = 0
-            , blockPreviousHash = zeroHash
+            { blockPreviousHash = zeroHash
+            , blockDifficulty   = undefined
+            , blockTimestamp    = undefined
             , blockRootHash     = undefined
             , blockNonce        = undefined
             }
@@ -323,9 +331,10 @@ appendBlock dat bc =
     prev = Seq.index bc (Seq.length bc - 1)
     new = Block header dat
     header = BlockHeader
-        { blockIndex        = blockIndex (blockHeader prev) + 1
-        , blockPreviousHash = blockHash prev
+        { blockPreviousHash = blockHash prev
         , blockRootHash     = rootHash
+        , blockDifficulty   = undefined
+        , blockTimestamp    = undefined
         , blockNonce        = undefined
         }
     rootHash =
