@@ -1,3 +1,3 @@
-# bitcoin
+# cryptocurrency
 
-Bitcoin proof-of-concept in Haskell.
+Cryptocurrency library for Haskell. Includes example Bitcoin implementation.
