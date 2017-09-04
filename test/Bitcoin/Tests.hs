@@ -5,6 +5,8 @@ import Bitcoin
 import Bitcoin.Network
 import Bitcoin.Crypto
 import Bitcoin.Tx
+import Crypto.Blockchain.Message (Message)
+import qualified Crypto.Blockchain.Message as Message
 import Test.Tasty
 import Test.Tasty.HUnit
 import Control.Monad
@@ -39,9 +41,9 @@ testBitcoin = do
 
     let Node { nodeSocket } = head nodes
 
-    broadcast nodeSocket MsgPing
+    broadcast nodeSocket Message.Ping
     pings <- forM (tail nodes) $ \Node { nodeName, nodeSocket } -> do
         msg <- receive nodeSocket
         pure (nodeName, msg)
 
-    assertEqual "Nodes received pings" [("9998", MsgPing), ("9997", MsgPing)] pings
+    assertEqual "Nodes received pings" [("9998", Message.Ping), ("9997", Message.Ping)] pings

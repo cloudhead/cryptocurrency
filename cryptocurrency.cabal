@@ -16,6 +16,7 @@ library
   exposed-modules:     Bitcoin
                      , Bitcoin.Crypto
                      , Bitcoin.Network
+                     , Bitcoin.Message
                      , Bitcoin.Types
                      , Bitcoin.Tx
                      , Crypto.Blockchain

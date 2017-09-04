@@ -7,6 +7,8 @@ import           Bitcoin.Types
 
 import           Crypto.Blockchain
 import           Crypto.Blockchain.Log
+import qualified Crypto.Blockchain.Message as Message
+import           Crypto.Blockchain.Message (Message)
 
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Hash.Tree (HashTree)
@@ -45,15 +47,6 @@ newtype Valid a = Valid a
 
 type Bitcoin = Blockchain Tx'
 
-data Message a =
-      MsgTx Tx'
-    | MsgBlock (Block a)
-    | MsgPing
-    deriving (Show, Generic)
-
-instance Binary a => Binary (Message a)
-deriving instance Eq a => Eq (Message a)
-
 class Validate a where
     validate :: a -> Either Error a
 
@@ -89,24 +82,24 @@ startNode port peers = do
     net :: Internet (Message Tx') <- listen port
     io . async $ connectToPeers net peers
     io . async $ forever $ do
-        broadcast net MsgPing
+        broadcast net Message.Ping
         threadDelay $ 1000 * 1000
 
     forever $ do
         msg <- receive net
         case msg of
-            MsgTx tx -> do
+            Message.Tx tx -> do
                 logInfoN "Tx"
                 mp <- asks envMempool
                 io $ modifyMVar_ mp (pure . addTx tx)
-            MsgBlock blk ->
+            Message.Block blk ->
                 logInfoN "Block"
-            MsgPing ->
+            Message.Ping ->
                 logInfoN "Ping"
 
-broadcastTransaction :: Socket n (Message a) => n -> Tx (Digest SHA256) -> IO ()
+broadcastTransaction :: Socket n (Message Tx') => n -> Tx' -> IO ()
 broadcastTransaction net tx = do
-    broadcast net (MsgTx tx)
+    broadcast net (Message.Tx tx)
 
 block :: [a] -> Either Error (Block' a)
 block xs = validate $
