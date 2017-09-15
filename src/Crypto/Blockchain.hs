@@ -5,7 +5,7 @@ import           Crypto.Blockchain.Log
 
 import           Data.Binary (Binary, get, put, encode)
 import qualified Data.Sequence as Seq
-import           Data.Sequence   (Seq, (|>))
+import           Data.Sequence   (Seq, (|>), (><))
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Hash.Tree (HashTree)
 import qualified Crypto.Hash.Tree as HashTree
@@ -17,11 +17,13 @@ import           Data.ByteString.Lazy (toStrict)
 import           Data.ByteString.Base58
 import           Data.ByteArray (convert, ByteArray, zero)
 import           Data.Maybe (fromJust)
+import           Data.Foldable (toList)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
+import           Control.Monad.STM.Class (MonadSTM, liftSTM)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Concurrent (MVar, readMVar, modifyMVar_, newMVar, threadDelay)
+import           Control.Concurrent.STM (TVar, readTVar, modifyTVar, newTVarIO, atomically)
 import           Control.Concurrent.Async (async, race)
 import           GHC.Generics (Generic)
 
@@ -36,16 +38,20 @@ newtype Mempool tx = Mempool { fromMempool :: Seq tx }
 addTx :: tx -> Mempool tx -> Mempool tx
 addTx tx (Mempool txs) = Mempool (txs |> tx)
 
+addTxs :: Foldable t => t tx -> Mempool tx -> Mempool tx
+addTxs txs' (Mempool txs) =
+    Mempool $ txs >< Seq.fromList (toList txs')
+
 data Env tx = Env
-    { envBlockchain :: MVar (Blockchain tx)
-    , envMempool    :: MVar (Mempool tx)
+    { envBlockchain :: TVar (Blockchain tx)
+    , envMempool    :: TVar (Mempool tx)
     , envLogger     :: Logger
     }
 
 newEnv :: IO (Env tx)
 newEnv = do
-    bc <- newMVar mempty
-    mp <- newMVar mempty
+    bc <- newTVarIO mempty
+    mp <- newTVarIO mempty
     pure $ Env
         { envBlockchain = bc
         , envMempool    = mp
@@ -100,13 +106,15 @@ listenForBlock = undefined
 proposeBlock :: MonadIO m => Block tx -> m ()
 proposeBlock = undefined
 
-updateMempool :: (MonadReader (Env tx) m, Traversable t) => t tx -> m ()
-updateMempool = undefined
+updateMempool :: (MonadSTM m, MonadReader (Env tx) m, Traversable t) => t tx -> m ()
+updateMempool txs = do
+    mp <- asks envMempool
+    liftSTM $ modifyTVar mp (addTxs txs)
 
 readTransactions :: MonadReader (Env tx) m => m (Seq tx)
 readTransactions = undefined
 
-mineBlocks :: (MonadReader (Env tx) m, MonadLogger m, MonadIO m) => m ()
+mineBlocks :: (MonadSTM m, MonadReader (Env tx) m, MonadLogger m, MonadIO m) => m ()
 mineBlocks = forever $ do
     txs <- readTransactions
     result <- liftIO $ race (findBlock txs) (listenForBlock)

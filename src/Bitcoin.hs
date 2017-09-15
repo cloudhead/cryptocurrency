@@ -17,8 +17,10 @@ import           Crypto.Error (CryptoFailable(CryptoPassed))
 import           Crypto.Number.Serialize (os2ip)
 
 import           Control.Concurrent.STM.TChan
+import           Control.Concurrent.STM (atomically)
+import           Control.Concurrent.STM.TVar (TVar, readTVar, modifyTVar)
 import           Control.Concurrent.Async (async, race)
-import           Control.Concurrent (MVar, readMVar, modifyMVar_, newMVar, threadDelay)
+import           Control.Concurrent (threadDelay)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
@@ -91,7 +93,7 @@ startNode port peers = do
             Message.Tx tx -> do
                 logInfoN "Tx"
                 mp <- asks envMempool
-                io $ modifyMVar_ mp (pure . addTx tx)
+                io . atomically $ modifyTVar mp (addTx tx)
             Message.Block blk ->
                 logInfoN "Block"
             Message.Ping ->

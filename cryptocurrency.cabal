@@ -16,12 +16,12 @@ library
   exposed-modules:     Bitcoin
                      , Bitcoin.Crypto
                      , Bitcoin.Network
-                     , Bitcoin.Message
                      , Bitcoin.Types
                      , Bitcoin.Tx
                      , Crypto.Blockchain
                      , Crypto.Blockchain.Log
                      , Crypto.Blockchain.Hash
+                     , Crypto.Blockchain.Message
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21
                      , fast-logger           == 2.4.10
@@ -31,6 +31,7 @@ library
                      , pipes-network         == 0.6.4.1
                      , mtl                   == 2.2.1
                      , monad-logger          == 0.3.24
+                     , monad-stm             == 0.1.0.2
                      , network               == 2.6.3.2
                      , network-simple        == 0.4.0.5
                      , binary                == 0.8.3.0

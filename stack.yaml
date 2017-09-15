@@ -11,6 +11,7 @@ extra-deps:
   - pipes-network-0.6.4.1
   - base58-bytestring-0.1.0
   - containers-0.5.10.2
+  - monad-stm-0.1.0.2
 
 flags: {}
 
