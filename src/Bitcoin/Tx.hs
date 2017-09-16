@@ -3,9 +3,9 @@ module Bitcoin.Tx where
 import           Bitcoin.Types
 import           Bitcoin.Crypto (PublicKey)
 
-import           Crypto.Blockchain.Hash
-import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import           Data.Binary (Binary, get, put, encode)
+import           Crypto.Blockchain.Hash ()
+import           Crypto.Hash (Digest, SHA256(..), hashlazy)
+import           Data.Binary (Binary, encode)
 import           Data.Word (Word64, Word32)
 import           Data.ByteString hiding (putStrLn)
 import           Data.ByteString.Base58

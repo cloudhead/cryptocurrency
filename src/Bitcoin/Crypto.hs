@@ -10,7 +10,6 @@ import Crypto.PubKey.ECC.Types (CurveName(SEC_p256k1), Point(..), getCurveByName
 import Crypto.Random.Types (MonadRandom)
 
 import Data.Binary
-import Data.ByteString
 
 instance Binary PublicKey where
     put (PublicKey curve (Point x y)) | curve == getCurveByName SEC_p256k1 =

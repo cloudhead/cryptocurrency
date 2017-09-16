@@ -1,32 +1,18 @@
 module Crypto.Blockchain where
 
-import           Crypto.Blockchain.Hash
 import           Crypto.Blockchain.Log
 import           Crypto.Blockchain.Block
 
-import           Data.Binary (Binary, get, put, encode)
 import qualified Data.Sequence as Seq
 import           Data.Sequence   (Seq, (|>), (><))
-import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import           Crypto.Hash.Tree (HashTree)
-import qualified Crypto.Hash.Tree as HashTree
-import           Crypto.Error (CryptoFailable(CryptoPassed))
-import           Crypto.Number.Serialize (os2ip)
-import           Data.Word (Word64, Word32)
-import           Data.ByteString hiding (putStrLn)
-import           Data.ByteString.Lazy (toStrict)
-import           Data.ByteString.Base58
-import           Data.ByteArray (convert, ByteArray, zero)
-import           Data.Maybe (fromJust)
 import           Data.Foldable (toList)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
 import           Control.Monad.STM.Class (MonadSTM, liftSTM)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Concurrent.STM (TVar, readTVar, modifyTVar, newTVarIO, atomically)
-import           Control.Concurrent.Async (async, race)
-import           GHC.Generics (Generic)
+import           Control.Concurrent.STM (TVar, readTVar, modifyTVar, newTVarIO)
+import           Control.Concurrent.Async (race)
 
 type Blockchain tx = Seq (Block' tx)
 

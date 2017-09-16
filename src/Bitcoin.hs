@@ -1,50 +1,35 @@
 module Bitcoin where
 
 import           Bitcoin.Network
-import           Bitcoin.Crypto
 import           Bitcoin.Tx
 import           Bitcoin.Types
 
 import           Crypto.Blockchain
 import           Crypto.Blockchain.Block
-import           Crypto.Blockchain.Log
 import qualified Crypto.Blockchain.Message as Message
 import           Crypto.Blockchain.Message (Message)
 
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import           Crypto.Hash.Tree (HashTree)
 import qualified Crypto.Hash.Tree as HashTree
-import           Crypto.Error (CryptoFailable(CryptoPassed))
-import           Crypto.Number.Serialize (os2ip)
 
-import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM (atomically)
-import           Control.Concurrent.STM.TVar (TVar, readTVar, modifyTVar)
-import           Control.Concurrent.Async (async, race)
+import           Control.Concurrent.STM.TVar (modifyTVar)
+import           Control.Concurrent.Async (async)
 import           Control.Concurrent (threadDelay)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
 
-import           Data.Binary (Binary, get, put, encode)
+import           Data.Binary (Binary, encode)
 import           Data.ByteString hiding (putStrLn)
-import           Data.ByteString.Lazy (toStrict)
-import           Data.ByteString.Base58
-import           Data.ByteArray (convert, ByteArray, zero)
 import qualified Data.ByteArray as ByteArray
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.Maybe (fromJust)
 import qualified Data.Sequence as Seq
 import           Data.Sequence   (Seq, (|>))
-import           Data.IORef
-import           Data.Word (Word64, Word32)
-import           Data.Int (Int32)
 
 import qualified Network.Socket as NS
-import           GHC.Generics (Generic)
-import           GHC.Stack (HasCallStack)
-import           Debug.Trace
 
 newtype Valid a = Valid a
 

@@ -1,8 +1,7 @@
 module Crypto.Blockchain.Message where
 
 import qualified Crypto.Blockchain.Block as Blockchain
-import qualified Crypto.Blockchain       as Blockchain
-import           Data.Binary (Binary, get, put, encode)
+import           Data.Binary (Binary)
 import           GHC.Generics (Generic)
 
 data Message a =

@@ -23,11 +23,10 @@ import qualified Data.ByteString.Lazy as LBS
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as B hiding (pack)
 import           Data.IORef
-import           Control.Concurrent.STM (TChan, writeTQueue, readTQueue, atomically, dupTChan)
+import           Control.Concurrent.STM (TChan, atomically, dupTChan)
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.Async (concurrently, async)
 import           Control.Monad
-import           GHC.Generics
 import           Pipes
 
 class Socket s a | s -> a where
@@ -80,7 +79,7 @@ instance Socket (TestSocket a) a where
         liftIO $ atomically $ readTChan inc
 
 listenTest :: (MonadIO m, Binary a) => NS.ServiceName -> m (TestSocket a)
-listenTest svc = liftIO $ do
+listenTest _svc = liftIO $ do
     remotes  <- newIORef []
     incoming <- newTChanIO
     pure $ TestSocket incoming remotes
@@ -117,7 +116,7 @@ listen port = liftIO $ do
 
     pure $ Internet incoming outgoing remotes
   where
-    hints = NS.defaultHints { NS.addrFlags = [NS.AI_PASSIVE] }
+    _hints = NS.defaultHints { NS.addrFlags = [NS.AI_PASSIVE] }
 
 pipeIncomming :: (MonadIO m, Binary a) => Pipe ByteString a m ()
 pipeIncomming = forever $ do

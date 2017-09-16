@@ -58,6 +58,13 @@ library
                      , FlexibleInstances
                      , MultiParamTypeClasses
                      , OverloadedStrings
+  ghc-options:         -Wall
+                       -fno-warn-orphans
+                       -fno-warn-name-shadowing
+                       -fno-warn-unused-do-bind
+                       -fno-warn-unused-top-binds
+                       -fno-warn-unused-matches
+                       -fno-warn-uused-local-binds
 
 executable bitcoin-exe
   main-is:             src/Main.hs

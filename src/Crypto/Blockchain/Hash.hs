@@ -1,11 +1,10 @@
 module Crypto.Blockchain.Hash where
 
-import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import           Crypto.Hash.Tree (HashTree)
+import           Crypto.Hash (Digest, SHA256(..), digestFromByteString)
 import qualified Crypto.Hash.Tree as HashTree
-import           Data.Binary (Binary, get, put, encode)
+import           Data.Binary (Binary, get, put)
 import           Data.ByteString hiding (putStrLn)
-import           Data.ByteArray (convert, ByteArray, zero)
+import           Data.ByteArray (convert)
 import           Data.Maybe (fromJust)
 
 instance Binary (Digest SHA256) where

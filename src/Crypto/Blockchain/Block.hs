@@ -1,29 +1,16 @@
 module Crypto.Blockchain.Block where
 
-import           Crypto.Blockchain.Hash
+import           Crypto.Blockchain.Hash ()
 
-import           Data.Binary (Binary, get, put, encode)
-import qualified Data.Sequence as Seq
-import           Data.Sequence   (Seq, (|>), (><))
+import           Data.Binary (Binary, encode)
+import           Data.Sequence (Seq)
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import           Crypto.Hash.Tree (HashTree)
 import qualified Crypto.Hash.Tree as HashTree
-import           Crypto.Error (CryptoFailable(CryptoPassed))
 import           Crypto.Number.Serialize (os2ip)
-import           Data.Word (Word64, Word32)
+import           Data.Word (Word32)
 import           Data.ByteString hiding (putStrLn)
-import           Data.ByteString.Lazy (toStrict)
-import           Data.ByteString.Base58
-import           Data.ByteArray (convert, ByteArray, zero)
+import           Data.ByteArray (zero)
 import           Data.Maybe (fromJust)
-import           Data.Foldable (toList)
-import           Control.Monad (forever)
-import           Control.Monad.Reader
-import           Control.Monad.Logger
-import           Control.Monad.STM.Class (MonadSTM, liftSTM)
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Concurrent.STM (TVar, readTVar, modifyTVar, newTVarIO, atomically)
-import           Control.Concurrent.Async (async, race)
 import           GHC.Generics (Generic)
 
 type Block' tx = Block tx
@@ -39,7 +26,7 @@ data BlockHeader = BlockHeader
     } deriving (Show, Generic)
 
 instance Eq BlockHeader where
-    (==) h h' = undefined
+    (==) _h _h' = undefined
 
 emptyBlockHeader :: BlockHeader
 emptyBlockHeader = BlockHeader
