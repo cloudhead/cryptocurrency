@@ -111,8 +111,10 @@ updateMempool txs = do
     mp <- asks envMempool
     liftSTM $ modifyTVar mp (addTxs txs)
 
-readTransactions :: MonadReader (Env tx) m => m (Seq tx)
-readTransactions = undefined
+readTransactions :: (MonadSTM m, MonadReader (Env tx) m) => m (Seq tx)
+readTransactions = do
+    mp <- asks envMempool
+    fromMempool <$> liftSTM (readTVar mp)
 
 mineBlocks :: (MonadSTM m, MonadReader (Env tx) m, MonadLogger m, MonadIO m) => m ()
 mineBlocks = forever $ do
