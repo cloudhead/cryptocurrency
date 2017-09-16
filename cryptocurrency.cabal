@@ -19,6 +19,7 @@ library
                      , Bitcoin.Types
                      , Bitcoin.Tx
                      , Crypto.Blockchain
+                     , Crypto.Blockchain.Block
                      , Crypto.Blockchain.Log
                      , Crypto.Blockchain.Hash
                      , Crypto.Blockchain.Message

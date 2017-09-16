@@ -2,6 +2,7 @@ module Crypto.Blockchain where
 
 import           Crypto.Blockchain.Hash
 import           Crypto.Blockchain.Log
+import           Crypto.Blockchain.Block
 
 import           Data.Binary (Binary, get, put, encode)
 import qualified Data.Sequence as Seq
@@ -27,10 +28,7 @@ import           Control.Concurrent.STM (TVar, readTVar, modifyTVar, newTVarIO, 
 import           Control.Concurrent.Async (async, race)
 import           GHC.Generics (Generic)
 
-type Timestamp = Word32
-
 type Blockchain tx = Seq (Block' tx)
-type Block' tx = Block tx
 
 newtype Mempool tx = Mempool { fromMempool :: Seq tx }
     deriving (Show, Monoid)
@@ -57,45 +55,6 @@ newEnv = do
         , envMempool    = mp
         , envLogger     = undefined
         }
-
-data BlockHeader = BlockHeader
-    { blockPreviousHash :: Digest SHA256
-    , blockRootHash     :: HashTree.RootHash SHA256
-    , blockNonce        :: Word32
-    , blockDifficulty   :: Difficulty
-    , blockTimestamp    :: Timestamp
-    } deriving (Show, Generic)
-
-instance Eq BlockHeader where
-    (==) h h' = undefined
-
-emptyBlockHeader :: BlockHeader
-emptyBlockHeader = BlockHeader
-    { blockPreviousHash = zeroHash
-    , blockRootHash = (HashTree.RootHash 0 zeroHash)
-    , blockNonce = 0
-    , blockDifficulty = 0
-    , blockTimestamp = 0
-    }
-
-instance Binary BlockHeader
-
-type Difficulty = Integer
-
-difficulty :: BlockHeader -> Difficulty
-difficulty bh = os2ip (hashlazy $ encode bh :: Digest SHA256)
-
-data Block a = Block
-    { blockHeader :: BlockHeader
-    , blockData   :: Seq a
-    } deriving (Show, Generic)
-
-instance (Binary a) => Binary (Block a)
-deriving instance Eq a => Eq (Block a)
-
-zeroHash :: HashAlgorithm a => Digest a
-zeroHash = fromJust $
-    digestFromByteString (zero (hashDigestSize SHA256) :: ByteString)
 
 findBlock :: (Monad m, Traversable t) => t tx -> m (Block tx)
 findBlock = undefined

@@ -6,6 +6,7 @@ import           Bitcoin.Tx
 import           Bitcoin.Types
 
 import           Crypto.Blockchain
+import           Crypto.Blockchain.Block
 import           Crypto.Blockchain.Log
 import qualified Crypto.Blockchain.Message as Message
 import           Crypto.Blockchain.Message (Message)
