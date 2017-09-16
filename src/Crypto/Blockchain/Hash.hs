@@ -1,10 +1,11 @@
 module Crypto.Blockchain.Hash where
 
-import           Crypto.Hash (Digest, SHA256(..), digestFromByteString)
+import           Crypto.Hash (Digest, SHA256(..), digestFromByteString, hashDigestSize, HashAlgorithm)
 import qualified Crypto.Hash.Tree as HashTree
 import           Data.Binary (Binary, get, put)
 import           Data.ByteString hiding (putStrLn)
 import           Data.ByteArray (convert)
+import qualified Data.ByteArray as ByteArray
 import           Data.Maybe (fromJust)
 
 instance Binary (Digest SHA256) where
@@ -18,4 +19,8 @@ instance Binary (HashTree.RootHash SHA256) where
         put n >> put digest
     get =
         HashTree.RootHash <$> get <*> get
+
+maxHash :: HashAlgorithm a => Digest a
+maxHash = fromJust $
+    digestFromByteString (ByteArray.replicate (hashDigestSize SHA256) maxBound :: ByteString)
 

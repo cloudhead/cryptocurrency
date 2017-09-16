@@ -4,6 +4,8 @@ import           Bitcoin.Types
 import           Bitcoin.Crypto (PublicKey)
 
 import           Crypto.Blockchain.Hash ()
+import           Crypto.Blockchain.Types (Error)
+
 import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 import           Data.Binary (Binary, encode)
 import           Data.Word (Word64, Word32)

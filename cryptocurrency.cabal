@@ -22,6 +22,7 @@ library
                      , Crypto.Blockchain.Block
                      , Crypto.Blockchain.Log
                      , Crypto.Blockchain.Hash
+                     , Crypto.Blockchain.Types
                      , Crypto.Blockchain.Message
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21

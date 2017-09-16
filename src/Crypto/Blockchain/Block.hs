@@ -1,6 +1,7 @@
 module Crypto.Blockchain.Block where
 
 import           Crypto.Blockchain.Hash ()
+import           Crypto.Blockchain.Types
 
 import           Data.Binary (Binary, encode)
 import           Data.Sequence (Seq)
@@ -11,6 +12,7 @@ import           Data.Word (Word32)
 import           Data.ByteString hiding (putStrLn)
 import           Data.ByteArray (zero)
 import           Data.Maybe (fromJust)
+import qualified Data.Sequence as Seq
 import           GHC.Generics (Generic)
 
 type Difficulty = Integer
@@ -46,10 +48,47 @@ data Block tx = Block
 instance (Binary a) => Binary (Block a)
 deriving instance Eq a => Eq (Block a)
 
+instance Validate (Block a) where
+    validate = validateBlock
+
+validateBlock :: Block a -> Either Error (Block a)
+validateBlock blk = Right blk
+
 difficulty :: BlockHeader -> Difficulty
 difficulty bh = os2ip (hashlazy $ encode bh :: Digest SHA256)
 
 zeroHash :: HashAlgorithm a => Digest a
 zeroHash = fromJust $
     digestFromByteString (zero (hashDigestSize SHA256) :: ByteString)
+
+block :: [a] -> Either Error (Block a)
+block xs = validate $
+    Block
+        BlockHeader
+            { blockPreviousHash = zeroHash
+            , blockDifficulty   = undefined
+            , blockTimestamp    = undefined
+            , blockRootHash     = undefined
+            , blockNonce        = undefined
+            }
+        (Seq.fromList xs)
+
+genesisDifficulty :: Difficulty
+genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+
+genesisBlock :: [a] -> Either Error (Block a)
+genesisBlock xs = validate $
+    Block
+        BlockHeader
+            { blockPreviousHash = zeroHash
+            , blockDifficulty   = genesisDifficulty
+            , blockTimestamp    = undefined
+            , blockRootHash     = undefined
+            , blockNonce        = 0
+            }
+        (Seq.fromList xs)
+
+isGenesisBlock :: Block a -> Bool
+isGenesisBlock blk =
+    (blockPreviousHash . blockHeader) blk == zeroHash
 

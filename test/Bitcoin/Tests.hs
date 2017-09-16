@@ -1,11 +1,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Bitcoin.Tests where
 
-import Bitcoin
 import Bitcoin.Network
 import Bitcoin.Crypto
 import Bitcoin.Tx
 import Crypto.Blockchain.Message (Message)
+import Crypto.Blockchain.Block
+import Crypto.Blockchain
 import qualified Crypto.Blockchain.Message as Message
 import Test.Tasty
 import Test.Tasty.HUnit
