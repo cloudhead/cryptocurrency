@@ -9,10 +9,10 @@ import           Data.Foldable (toList)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
 import           Control.Monad.Logger
-import           Control.Monad.STM.Class (MonadSTM, liftSTM)
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Concurrent.STM
-import           Control.Applicative ((<|>))
+import           Control.Monad.STM.Class (MonadSTM)
+import           Control.Monad.Conc.Class (MonadConc)
+import           Control.Monad.IO.Class (MonadIO)
+import           Control.Concurrent.Classy.STM
 
 type Blockchain tx = Seq (Block' tx)
 
@@ -26,18 +26,18 @@ addTxs :: Foldable t => t tx -> Mempool tx -> Mempool tx
 addTxs txs' (Mempool txs) =
     Mempool $ txs >< Seq.fromList (toList txs')
 
-data Env tx = Env
-    { envBlockchain :: TVar (Blockchain tx)
-    , envMempool    :: TVar (Mempool tx)
-    , envNewBlocks  :: TMVar (Block tx)
+data Env tx stm = Env
+    { envBlockchain :: TVar stm (Blockchain tx)
+    , envMempool    :: TVar stm (Mempool tx)
+    , envNewBlocks  :: TMVar stm (Block tx)
     , envLogger     :: Logger
     }
 
-newEnv :: IO (Env tx)
+newEnv :: MonadSTM stm => stm (Env tx stm)
 newEnv = do
-    bc <- newTVarIO mempty
-    mp <- newTVarIO mempty
-    nb <- newEmptyTMVarIO
+    bc <- newTVar mempty
+    mp <- newTVar mempty
+    nb <- newEmptyTMVar
     pure $ Env
         { envBlockchain = bc
         , envMempool    = mp
@@ -45,33 +45,31 @@ newEnv = do
         , envLogger     = undefined
         }
 
-findBlock :: (MonadSTM m, Traversable t) => Env tx -> t tx -> m (Block tx)
+findBlock :: (MonadSTM m, Traversable t) => Env tx m -> t tx -> m (Block tx)
 findBlock = undefined
 
-listenForBlock :: Env tx -> STM (Block tx)
+listenForBlock :: MonadSTM m => Env tx m -> m (Block tx)
 listenForBlock Env { envNewBlocks } =
     takeTMVar envNewBlocks
 
 proposeBlock :: MonadIO m => Block tx -> m ()
 proposeBlock = undefined
 
-updateMempool :: (MonadSTM m, Traversable t) => Env tx -> t tx -> m ()
+updateMempool :: (MonadSTM m, Traversable t) => Env tx m -> t tx -> m ()
 updateMempool Env { envMempool } txs =
-    liftSTM $ modifyTVar envMempool (addTxs txs)
+    modifyTVar envMempool (addTxs txs)
 
-readTransactions :: Env tx -> STM (Seq tx)
+readTransactions :: MonadSTM m => Env tx m -> m (Seq tx)
 readTransactions Env { envMempool } =
     fromMempool <$> readTVar envMempool
 
-mineBlocks :: (MonadIO m, MonadReader (Env tx) m, MonadLogger m) => m ()
+mineBlocks :: (MonadSTM m, MonadConc m, MonadIO m, MonadReader (Env tx m) m, MonadLogger m) => m ()
 mineBlocks = forever $ do
     env <- ask
-    liftIO $ do
-        txs    <- atomically $ readTransactions env
-        result <- atomically $  Left  <$> findBlock env txs
-                            <|> Right <$> listenForBlock env
-        case result of
-            Left foundBlock ->
-                proposeBlock foundBlock
-            Right receivedBlock ->
-                atomically $ updateMempool env (blockData receivedBlock)
+    txs <- readTransactions env
+    result <- (Left <$> findBlock env txs) `orElse` (Right <$> listenForBlock env)
+    case result of
+        Left foundBlock ->
+            proposeBlock foundBlock
+        Right receivedBlock ->
+            updateMempool env (blockData receivedBlock)

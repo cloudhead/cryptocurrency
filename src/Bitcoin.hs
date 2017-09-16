@@ -12,9 +12,9 @@ import           Crypto.Blockchain.Message (Message)
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import qualified Crypto.Hash.Tree as HashTree
 
-import           Control.Concurrent.STM (atomically)
-import           Control.Concurrent.STM.TVar (modifyTVar)
-import           Control.Concurrent.Async (async)
+import           Control.Concurrent.Classy (MonadConc)
+import           Control.Concurrent.Classy.Async (async)
+import           Control.Concurrent.Classy.STM
 import           Control.Concurrent (threadDelay)
 import           Control.Monad (forever)
 import           Control.Monad.Reader
@@ -62,7 +62,7 @@ io :: MonadIO m => IO a -> m a
 io = liftIO
 
 startNode
-    :: (MonadReader (Env Tx') m, MonadLogger m, MonadIO m)
+    :: (MonadReader (Env Tx' m) m, MonadLogger m, MonadIO m, MonadSTM m, MonadConc m)
     => NS.ServiceName
     -> [(NS.HostName, NS.ServiceName)]
     -> m ()
@@ -73,15 +73,17 @@ startNode port peers = do
         broadcast net Message.Ping
         threadDelay $ 1000 * 1000
 
+    Env {..} <- ask
+
     forever $ do
         msg <- receive net
         case msg of
             Message.Tx tx -> do
                 logInfoN "Tx"
-                mp <- asks envMempool
-                io . atomically $ modifyTVar mp (addTx tx)
-            Message.Block blk ->
+                modifyTVar envMempool (addTx tx)
+            Message.Block blk -> do
                 logInfoN "Block"
+                putTMVar envNewBlocks blk
             Message.Ping ->
                 logInfoN "Ping"
 

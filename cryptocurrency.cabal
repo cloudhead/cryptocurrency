@@ -25,6 +25,7 @@ library
                      , Crypto.Blockchain.Message
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21
+                     , concurrency           == 1.1.2.1
                      , fast-logger           == 2.4.10
                      , memory                == 0.14.6
                      , merkle-tree           == 0.1.0.0
@@ -32,7 +33,6 @@ library
                      , pipes-network         == 0.6.4.1
                      , mtl                   == 2.2.1
                      , monad-logger          == 0.3.24
-                     , monad-stm             == 0.1.0.2
                      , network               == 2.6.3.2
                      , network-simple        == 0.4.0.5
                      , binary                == 0.8.3.0
@@ -58,13 +58,14 @@ library
                      , FlexibleInstances
                      , MultiParamTypeClasses
                      , OverloadedStrings
+                     , RecordWildCards
   ghc-options:         -Wall
                        -fno-warn-orphans
                        -fno-warn-name-shadowing
                        -fno-warn-unused-do-bind
                        -fno-warn-unused-top-binds
                        -fno-warn-unused-matches
-                       -fno-warn-uused-local-binds
+                       -fno-warn-unused-local-binds
 
 executable bitcoin-exe
   main-is:             src/Main.hs
