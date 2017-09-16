@@ -13,7 +13,6 @@ import           Data.ByteArray (zero)
 import           Data.Maybe (fromJust)
 import           GHC.Generics (Generic)
 
-type Block' tx = Block tx
 type Difficulty = Integer
 type Timestamp = Word32
 
@@ -39,9 +38,9 @@ emptyBlockHeader = BlockHeader
 
 instance Binary BlockHeader
 
-data Block a = Block
+data Block tx = Block
     { blockHeader :: BlockHeader
-    , blockData   :: Seq a
+    , blockData   :: Seq tx
     } deriving (Show, Generic)
 
 instance (Binary a) => Binary (Block a)

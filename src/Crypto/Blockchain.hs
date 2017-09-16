@@ -14,7 +14,7 @@ import           Control.Monad.Conc.Class (MonadConc)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.Classy.STM
 
-type Blockchain tx = Seq (Block' tx)
+type Blockchain tx = Seq (Block tx)
 
 newtype Mempool tx = Mempool { fromMempool :: Seq tx }
     deriving (Show, Monoid)

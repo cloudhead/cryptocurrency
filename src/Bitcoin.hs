@@ -50,7 +50,7 @@ validateBlockchain bc = Right bc
 validateBlock :: Block a -> Either Error (Block a)
 validateBlock blk = Right blk
 
-isGenesisBlock :: Block' a -> Bool
+isGenesisBlock :: Block a -> Bool
 isGenesisBlock blk =
     (blockPreviousHash . blockHeader) blk == zeroHash
 
@@ -91,7 +91,7 @@ broadcastTransaction :: Socket n (Message Tx') => n -> Tx' -> IO ()
 broadcastTransaction net tx = do
     broadcast net (Message.Tx tx)
 
-block :: [a] -> Either Error (Block' a)
+block :: [a] -> Either Error (Block a)
 block xs = validate $
     Block
         BlockHeader
@@ -106,7 +106,7 @@ block xs = validate $
 genesisDifficulty :: Difficulty
 genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-genesisBlock :: [a] -> Either Error (Block' a)
+genesisBlock :: [a] -> Either Error (Block a)
 genesisBlock xs = validate $
     Block
         BlockHeader
@@ -118,7 +118,7 @@ genesisBlock xs = validate $
             }
         (Seq.fromList xs)
 
-blockchain :: [Block' a] -> Either Error (Blockchain a)
+blockchain :: [Block a] -> Either Error (Blockchain a)
 blockchain blks = validate $ Seq.fromList blks
 
 hashValidation :: Integer -> BlockHeader -> Bool
