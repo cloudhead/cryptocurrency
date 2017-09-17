@@ -1,2 +1,2 @@
 :set -isrc
-:load test/Main.hs
+:load src/Bitcoin

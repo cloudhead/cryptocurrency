@@ -24,8 +24,29 @@ type Bitcoin = Blockchain Tx'
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
+processMessage
+    :: ( MonadLogger m
+       , MonadIO m
+       , MonadSTM m
+       , MonadConc m )
+    => Env tx m
+    -> Message tx
+    -> m ()
+processMessage Env { envMempool } (Message.Tx tx) = do
+    logInfoN "Tx"
+    modifyTVar envMempool (addTx tx)
+processMessage Env { envNewBlocks } (Message.Block blk) = do
+    logInfoN "Block"
+    putTMVar envNewBlocks blk
+processMessage _ Message.Ping =
+    logInfoN "Ping"
+
 startNode
-    :: (MonadReader (Env Tx' m) m, MonadLogger m, MonadIO m, MonadSTM m, MonadConc m)
+    :: ( MonadReader (Env Tx' m) m
+       , MonadLogger m
+       , MonadIO m
+       , MonadSTM m
+       , MonadConc m )
     => NS.ServiceName
     -> [(NS.HostName, NS.ServiceName)]
     -> m ()
@@ -36,19 +57,12 @@ startNode port peers = do
         broadcast net Message.Ping
         threadDelay $ 1000 * 1000
 
-    Env {..} <- ask
-
+    env@Env {..} <- ask
     forever $ do
         msg <- receive net
-        case msg of
-            Message.Tx tx -> do
-                logInfoN "Tx"
-                modifyTVar envMempool (addTx tx)
-            Message.Block blk -> do
-                logInfoN "Block"
-                putTMVar envNewBlocks blk
-            Message.Ping ->
-                logInfoN "Ping"
+        when (not (messageAlreadySeen msg envSeen)) $ do
+            processMessage env msg
+            broadcast net msg
 
 broadcastTransaction :: Socket n (Message Tx') => n -> Tx' -> IO ()
 broadcastTransaction net tx = do

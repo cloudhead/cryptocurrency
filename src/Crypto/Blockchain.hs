@@ -3,10 +3,13 @@ module Crypto.Blockchain where
 import           Crypto.Blockchain.Log
 import           Crypto.Blockchain.Block
 import           Crypto.Blockchain.Types
+import           Crypto.Blockchain.Message (Message)
 
 import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 import qualified Crypto.Hash.Tree as HashTree
 
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           Data.Binary (Binary, encode)
 import qualified Data.Sequence as Seq
 import           Data.Sequence   (Seq, (|>), (><))
@@ -79,6 +82,7 @@ data Env tx stm = Env
     , envMempool    :: TVar stm (Mempool tx)
     , envNewBlocks  :: TMVar stm (Block tx)
     , envLogger     :: Logger
+    , envSeen       :: Set (Hashed (Message tx) SHA256)
     }
 
 newEnv :: MonadSTM stm => stm (Env tx stm)
@@ -91,7 +95,11 @@ newEnv = do
         , envMempool    = mp
         , envNewBlocks  = nb
         , envLogger     = undefined
+        , envSeen       = mempty
         }
+
+messageAlreadySeen :: Binary tx => Message tx -> Set (Hashed (Message tx) SHA256) -> Bool
+messageAlreadySeen msg = Set.member (hashed msg)
 
 findBlock :: (MonadSTM m, Traversable t) => Env tx m -> t tx -> m (Block tx)
 findBlock = undefined

@@ -1,6 +1,9 @@
-module Crypto.Blockchain.Hash where
+module Crypto.Blockchain.Hash
+    ( maxHash
+    , module Crypto.Hash
+    ) where
 
-import           Crypto.Hash (Digest, SHA256(..), digestFromByteString, hashDigestSize, HashAlgorithm)
+import           Crypto.Hash (Digest, SHA256(..), digestFromByteString, hashDigestSize, HashAlgorithm, hash)
 import qualified Crypto.Hash.Tree as HashTree
 import           Data.Binary (Binary, get, put)
 import           Data.ByteString hiding (putStrLn)
