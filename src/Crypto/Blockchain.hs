@@ -98,8 +98,8 @@ newEnv = do
         , envSeen       = mempty
         }
 
-messageAlreadySeen :: Binary tx => Message tx -> Set (Hashed (Message tx) SHA256) -> Bool
-messageAlreadySeen msg = Set.member (hashed msg)
+messageIsNew :: Binary tx => Message tx -> Set (Hashed (Message tx) SHA256) -> Bool
+messageIsNew msg = not . Set.member (hashed msg)
 
 findBlock :: (MonadSTM m, Traversable t) => Env tx m -> t tx -> m (Block tx)
 findBlock = undefined

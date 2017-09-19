@@ -60,7 +60,7 @@ startNode port peers = do
     env@Env {..} <- ask
     forever $ do
         msg <- receive net
-        when (not (messageAlreadySeen msg envSeen)) $ do
+        when (messageIsNew msg envSeen) $ do
             processMessage env msg
             broadcast net msg
 
