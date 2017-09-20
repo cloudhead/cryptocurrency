@@ -26,7 +26,6 @@ library
                      , Crypto.Blockchain.Message
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.21
-                     , concurrency           == 1.1.2.1
                      , fast-logger           == 2.4.10
                      , memory                == 0.14.6
                      , merkle-tree           == 0.1.0.0
@@ -60,6 +59,7 @@ library
                      , MultiParamTypeClasses
                      , OverloadedStrings
                      , RecordWildCards
+                     , GADTs
   ghc-options:         -Wall
                        -fno-warn-orphans
                        -fno-warn-name-shadowing
