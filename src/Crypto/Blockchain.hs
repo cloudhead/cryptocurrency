@@ -24,17 +24,21 @@ import           Control.Applicative (Alternative, (<|>))
 type Blockchain tx = Seq (Block tx)
 
 class Alternative m => MonadBlock tx m where
-    listenForBlock  :: Env tx -> m (Block tx)
-    receiveNewBlock :: Env tx -> Block tx -> m ()
-    proposeBlock    :: Env tx -> Block tx -> m ()
-    findBlock       :: Traversable t => Env tx -> t tx -> m (Block tx)
+    listenForBlock   :: Env tx -> m (Block tx)
+    receiveNewBlock  :: Env tx -> Block tx -> m ()
+    proposeBlock     :: Env tx -> Block tx -> m ()
+    updateBlockchain :: Env tx -> Block tx -> m ()
+    findBlock        :: Traversable t => Env tx -> t tx -> m (Block tx)
 
 instance MonadBlock tx STM where
     listenForBlock Env { envNewBlocks } =
         takeTMVar envNewBlocks
     receiveNewBlock Env { envNewBlocks } blk =
         putTMVar envNewBlocks blk
-    proposeBlock _ _ = undefined
+    updateBlockchain Env { envBlockchain } blk =
+        modifyTVar envBlockchain (\blks -> blks |> blk)
+
+    proposeBlock _ = undefined
     findBlock _ _ = undefined
 
 class MonadMempool tx m where
