@@ -25,18 +25,18 @@ library
                      , Crypto.Blockchain.Types
                      , Crypto.Blockchain.Message
   build-depends:       base                  >= 4.7 && < 5
-                     , cryptonite            == 0.21
+                     , cryptonite            == 0.24
                      , fast-logger           == 2.4.10
-                     , memory                == 0.14.6
+                     , memory                == 0.14.8
                      , merkle-tree           == 0.1.0.0
-                     , pipes                 == 4.3.4
+                     , pipes                 == 4.3.5
                      , pipes-network         == 0.6.4.1
                      , mtl                   == 2.2.1
-                     , monad-logger          == 0.3.24
+                     , monad-logger          == 0.3.25.1
                      , network               == 2.6.3.2
                      , network-simple        == 0.4.0.5
-                     , binary                == 0.8.3.0
-                     , bytestring            == 0.10.8.1
+                     , binary                == 0.8.5.1
+                     , bytestring            == 0.10.8.2
                      , base16-bytestring     == 0.1.1.6
                      , base58-bytestring     == 0.1.0
                      , stm                   == 2.4.4.1
