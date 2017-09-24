@@ -12,8 +12,7 @@ import qualified Crypto.Hash.Tree as HashTree
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Binary (Binary, encode)
-import qualified Data.Sequence as Seq
-import           Data.Sequence   (Seq, (|>), (><))
+import           Data.Sequence   (Seq)
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
@@ -31,7 +30,7 @@ class Alternative m => MonadBlock tx m where
     listenForBlock   :: MonadEnv tx m => m (Block tx)
     proposeBlock     :: MonadEnv tx m => Block tx -> m ()
     updateBlockchain :: MonadEnv tx m => Block tx -> m ()
-    findBlock        :: Traversable t => BlockHeader -> t tx -> m (Maybe (Block tx))
+    findBlock        :: Foldable t => BlockHeader -> t tx -> m (Maybe (Block tx))
 
 instance MonadBlock tx STM where
     readBlockchain =
@@ -45,20 +44,21 @@ instance MonadBlock tx STM where
     proposeBlock _ = undefined
     findBlock _ _ = undefined
 
-class MonadMempool tx m where
-    readMempool   :: MonadEnv tx m => m (Seq tx)
-    writeMempool  :: MonadEnv tx m => Traversable t => t tx -> m ()
-    updateMempool :: MonadEnv tx m => Traversable t => t tx -> m ()
+class Ord tx => MonadMempool tx m where
+    readMempool   :: MonadEnv tx m => m (Set tx)
+    writeMempool  :: MonadEnv tx m => Foldable t => t tx -> m ()
+    updateMempool :: MonadEnv tx m => Foldable t => t tx -> m ()
 
-instance MonadMempool tx STM where
+instance Ord tx => MonadMempool tx STM where
     readMempool = do
         mp <- asks envMempool
         fromMempool <$> readTVar mp
     writeMempool txs = do
         mp <- asks envMempool
         modifyTVar mp (addTxs txs)
-    updateMempool txs =
-        undefined
+    updateMempool txs = do
+        mp <- asks envMempool
+        modifyTVar mp (removeTxs txs)
 
 instance Validate (Blockchain a) where
     validate = validateBlockchain
@@ -105,15 +105,19 @@ blockHash blk =
 lastBlock :: Blockchain tx -> Block tx
 lastBlock = NonEmpty.head
 
-newtype Mempool tx = Mempool { fromMempool :: Seq tx }
+newtype Mempool tx = Mempool { fromMempool :: Set tx }
     deriving (Show, Monoid)
 
-addTx :: tx -> Mempool tx -> Mempool tx
-addTx tx (Mempool txs) = Mempool (txs |> tx)
+addTx :: Ord tx => tx -> Mempool tx -> Mempool tx
+addTx tx (Mempool txs) = Mempool (Set.insert tx txs)
 
-addTxs :: Foldable t => t tx -> Mempool tx -> Mempool tx
+addTxs :: (Ord tx, Foldable t) => t tx -> Mempool tx -> Mempool tx
 addTxs txs' (Mempool txs) =
-    Mempool $ txs >< Seq.fromList (toList txs')
+    Mempool $ Set.union txs (Set.fromList (toList txs'))
+
+removeTxs :: (Ord tx, Foldable t) => t tx -> Mempool tx -> Mempool tx
+removeTxs txs' (Mempool txs) =
+    Mempool $ Set.difference (Set.fromList (toList txs')) txs
 
 data Env tx = Env
     { envBlockchain :: TVar (Blockchain tx)
@@ -123,7 +127,7 @@ data Env tx = Env
     , envSeen       :: Set (Hashed (Message tx) SHA256)
     }
 
-newEnv :: Block tx -> STM (Env tx)
+newEnv :: Ord tx => Block tx -> STM (Env tx)
 newEnv genesis = do
     bc <- newTVar (genesis :| [])
     mp <- newTVar mempty
