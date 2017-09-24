@@ -4,6 +4,7 @@ import           Crypto.Blockchain.Log
 import           Crypto.Blockchain.Block
 import           Crypto.Blockchain.Types
 import           Crypto.Blockchain.Message (Message)
+import qualified Crypto.Blockchain.Message as Message
 
 import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 import qualified Crypto.Hash.Tree as HashTree
@@ -15,43 +16,48 @@ import qualified Data.Sequence as Seq
 import           Data.Sequence   (Seq, (|>), (><))
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
+import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Control.Monad.Reader
 import           Control.Monad.Logger
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM
-import           Control.Applicative (Alternative, (<|>))
+import           Control.Applicative (Alternative)
 
-type Blockchain tx = Seq (Block tx)
+type Blockchain tx = NonEmpty (Block tx)
+type MonadEnv tx m = MonadReader (Env tx) m
 
 class Alternative m => MonadBlock tx m where
-    listenForBlock   :: Env tx -> m (Block tx)
-    receiveNewBlock  :: Env tx -> Block tx -> m ()
-    proposeBlock     :: Env tx -> Block tx -> m ()
-    updateBlockchain :: Env tx -> Block tx -> m ()
-    findBlock        :: Traversable t => Env tx -> t tx -> m (Block tx)
+    readBlockchain   :: MonadEnv tx m => m (Blockchain tx)
+    listenForBlock   :: MonadEnv tx m => m (Block tx)
+    proposeBlock     :: MonadEnv tx m => Block tx -> m ()
+    updateBlockchain :: MonadEnv tx m => Block tx -> m ()
+    findBlock        :: Traversable t => BlockHeader -> t tx -> m (Maybe (Block tx))
 
 instance MonadBlock tx STM where
-    listenForBlock Env { envNewBlocks } =
-        takeTMVar envNewBlocks
-    receiveNewBlock Env { envNewBlocks } blk =
-        putTMVar envNewBlocks blk
-    updateBlockchain Env { envBlockchain } blk =
-        modifyTVar envBlockchain (\blks -> blks |> blk)
+    readBlockchain =
+        asks envBlockchain >>= readTVar
+    listenForBlock =
+        takeTMVar =<< asks envNewBlocks
+    updateBlockchain blk = do
+        blks <- asks envBlockchain
+        modifyTVar blks (\blks -> blk <| blks)
 
     proposeBlock _ = undefined
     findBlock _ _ = undefined
 
 class MonadMempool tx m where
-    readMempool   :: Env tx -> m (Seq tx)
-    writeMempool  :: Traversable t => Env tx -> t tx -> m ()
-    updateMempool :: Traversable t => Env tx -> t tx -> m ()
+    readMempool   :: MonadEnv tx m => m (Seq tx)
+    writeMempool  :: MonadEnv tx m => Traversable t => t tx -> m ()
+    updateMempool :: MonadEnv tx m => Traversable t => t tx -> m ()
 
 instance MonadMempool tx STM where
-    readMempool Env { envMempool } =
-        fromMempool <$> readTVar envMempool
-    writeMempool Env { envMempool } txs =
-        modifyTVar envMempool (addTxs txs)
-    updateMempool Env { envMempool } txs =
+    readMempool = do
+        mp <- asks envMempool
+        fromMempool <$> readTVar mp
+    writeMempool txs = do
+        mp <- asks envMempool
+        modifyTVar mp (addTxs txs)
+    updateMempool txs =
         undefined
 
 instance Validate (Blockchain a) where
@@ -61,7 +67,7 @@ validateBlockchain :: Blockchain a -> Either Error (Blockchain a)
 validateBlockchain bc = Right bc
 
 blockchain :: [Block a] -> Either Error (Blockchain a)
-blockchain blks = validate $ Seq.fromList blks
+blockchain blks = validate $ NonEmpty.fromList blks
 
 hashValidation :: Integer -> BlockHeader -> Bool
 hashValidation target bh =
@@ -77,9 +83,9 @@ proofOfWork validate bh@BlockHeader { blockNonce } =
 
 appendBlock :: Binary a => Seq a -> Blockchain a -> Either Error (Blockchain a)
 appendBlock dat bc =
-    validate $ bc |> new
+    validate $ new <| bc
   where
-    prev = Seq.index bc (Seq.length bc - 1)
+    prev = NonEmpty.head bc
     new = Block header dat
     header = BlockHeader
         { blockPreviousHash = blockHash prev
@@ -95,6 +101,9 @@ appendBlock dat bc =
 blockHash :: (Binary a) => Block a -> Digest SHA256
 blockHash blk =
     hashlazy $ encode blk
+
+lastBlock :: Blockchain tx -> Block tx
+lastBlock = NonEmpty.head
 
 newtype Mempool tx = Mempool { fromMempool :: Seq tx }
     deriving (Show, Monoid)
@@ -114,9 +123,9 @@ data Env tx = Env
     , envSeen       :: Set (Hashed (Message tx) SHA256)
     }
 
-newEnv :: STM (Env tx)
-newEnv = do
-    bc <- newTVar mempty
+newEnv :: Block tx -> STM (Env tx)
+newEnv genesis = do
+    bc <- newTVar (genesis :| [])
     mp <- newTVar mempty
     nb <- newEmptyTMVar
     pure $ Env
@@ -134,15 +143,36 @@ mineBlock
     :: ( MonadIO m
        , MonadMempool tx m
        , MonadBlock tx m
-       , MonadReader (Env tx) m
+       , MonadEnv tx m
        , MonadLogger m)
     => m ()
 mineBlock = do
-    env <- ask
-    txs <- readMempool env
-    result <- Left <$> findBlock env txs <|> Right <$> listenForBlock env
+    txs <- readMempool
+    blks <- readBlockchain
+    result <- findBlock (blockHeader (lastBlock blks)) txs
     case result of
-        Left foundBlock ->
-            proposeBlock env foundBlock
-        Right receivedBlock ->
-            updateMempool env (blockData receivedBlock)
+        Just foundBlock -> do
+            proposeBlock foundBlock
+            updateBlockchain foundBlock
+        Nothing ->
+            pure ()
+
+processMessage
+    :: ( MonadLogger m
+       , MonadMempool tx m
+       , MonadBlock tx m
+       , MonadEnv tx m
+       , MonadIO m )
+    => Message tx
+    -> m ()
+processMessage (Message.Tx tx) = do
+    writeMempool [tx]
+processMessage (Message.Block blk) = do
+    -- TODO: Validate, check previous hash, if height <= my chain height, discard,
+    -- else try to update my chain. If the block height isnt my chain's height + 1,
+    -- get previous blocks from network and add to my chain. This can happen
+    -- if I've been building on the wrong history.
+    updateMempool (blockData blk)
+    updateBlockchain blk
+processMessage Message.Ping =
+    pure ()

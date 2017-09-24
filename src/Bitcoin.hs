@@ -19,24 +19,12 @@ newtype Valid a = Valid a
 
 type Bitcoin = Blockchain Tx'
 
-io :: MonadIO m => IO a -> m a
-io = liftIO
-
-processMessage
-    :: ( MonadLogger m
-       , MonadMempool tx m
-       , MonadBlock tx m
-       , MonadIO m )
-    => Env tx
-    -> Message tx
-    -> m ()
-processMessage env (Message.Tx tx) = do
+logMessage :: MonadLogger m => Message tx -> m ()
+logMessage (Message.Tx tx) =
     logInfoN "Tx"
-    writeMempool env [tx]
-processMessage env (Message.Block blk) = do
+logMessage (Message.Block blk) =
     logInfoN "Block"
-    receiveNewBlock env blk
-processMessage _ Message.Ping =
+logMessage (Message.Ping) =
     logInfoN "Ping"
 
 startNode
@@ -71,7 +59,8 @@ listenForMessage net = do
     forever $ do
         msg <- receive net
         when (messageIsNew msg envSeen) $ do
-            processMessage env msg
+            logMessage msg
+            processMessage msg
             broadcast net msg
 
 broadcastTransaction :: Socket n (Message Tx') => n -> Tx' -> IO ()

@@ -47,7 +47,9 @@ library
                      , FunctionalDependencies
                      , FlexibleContexts
                      , NamedFieldPuns
+                     , ConstraintKinds
                      , StandaloneDeriving
+                     , ViewPatterns
                      , TypeSynonymInstances
                      , RankNTypes
                      , StandaloneDeriving
