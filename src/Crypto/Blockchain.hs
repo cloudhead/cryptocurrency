@@ -7,16 +7,17 @@ import           Crypto.Blockchain.Message (Message)
 import qualified Crypto.Blockchain.Message as Message
 import           Crypto.Blockchain.Mempool
 
-import           Crypto.Hash (Digest, SHA256(..), hashlazy)
-import qualified Crypto.Hash.Tree as HashTree
+import           Crypto.Hash (Digest, SHA256(..), hash, hashlazy)
 
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Binary (Binary, encode)
-import           Data.Sequence   (Seq)
+import           Data.ByteString.Lazy (toStrict)
+import qualified Data.ByteString as BS
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
+import           Data.Time.Clock.POSIX
 import           Control.Monad.Reader
 import           Control.Monad.Logger
 import           Control.Monad.IO.Class (MonadIO)
@@ -31,7 +32,6 @@ class Alternative m => MonadBlock tx m where
     listenForBlock   :: MonadEnv tx m => m (Block tx)
     proposeBlock     :: MonadEnv tx m => Block tx -> m ()
     updateBlockchain :: MonadEnv tx m => Block tx -> m ()
-    findBlock        :: Foldable t => BlockHeader -> t tx -> m (Maybe (Block tx))
 
 instance MonadBlock tx STM where
     readBlockchain =
@@ -43,7 +43,6 @@ instance MonadBlock tx STM where
         modifyTVar blks (\blks -> blk <| blks)
 
     proposeBlock _ = undefined
-    findBlock _ _ = undefined
 
 class Ord tx => MonadMempool tx m where
     readMempool   :: MonadEnv tx m => m (Set tx)
@@ -61,6 +60,12 @@ instance Ord tx => MonadMempool tx STM where
         mp <- asks envMempool
         modifyTVar mp (removeTxs txs)
 
+class Monad m => MonadTime m where
+    getTime :: m Timestamp
+
+instance MonadTime IO where
+    getTime = round <$> getPOSIXTime
+
 instance Validate (Blockchain a) where
     validate = validateBlockchain
 
@@ -76,32 +81,43 @@ hashValidation target bh =
   where
     digest = hashlazy $ encode bh :: Digest SHA256
 
-proofOfWork :: (BlockHeader -> Bool) -> BlockHeader -> BlockHeader
+proofOfWork :: Monad m => (BlockHeader -> Bool) -> BlockHeader -> m BlockHeader
 proofOfWork validate bh | validate bh =
-    bh
+    pure bh
 proofOfWork validate bh@BlockHeader { blockNonce } =
     proofOfWork validate bh { blockNonce = blockNonce + 1 }
 
-appendBlock :: Binary a => Seq a -> Blockchain a -> Either Error (Blockchain a)
-appendBlock dat bc =
-    validate $ new <| bc
-  where
-    prev = NonEmpty.head bc
-    new = Block header dat
-    header = BlockHeader
-        { blockPreviousHash = blockHash prev
-        , blockRootHash     = rootHash
-        , blockDifficulty   = undefined
-        , blockTimestamp    = undefined
-        , blockNonce        = undefined
-        }
-    rootHash =
-        HashTree.rootHash . HashTree.fromList . NonEmpty.fromList . toList $
-            fmap (hashlazy . encode) dat
+hasProofOfWork :: BlockHeader -> Bool
+hasProofOfWork header = True
 
-blockHash :: (Binary a) => Block a -> Digest SHA256
-blockHash blk =
-    hashlazy $ encode blk
+findBlock
+    :: (Binary tx, MonadTime m, Foldable t)
+    => BlockHeader
+    -> t tx
+    -> m (Maybe (Block tx))
+findBlock prevHeader txs = do
+    now <- getTime
+    proofHeader <- proofOfWork hasProofOfWork (newHeader now)
+    pure Nothing
+  where
+    newHeader t = BlockHeader
+        { blockPreviousHash = blockHeaderHash prevHeader
+        , blockRootHash     = txsHash
+        , blockDifficulty   = undefined
+        , blockTimestamp    = t
+        , blockNonce        = 0
+        }
+    txsHash =
+        if   null txs
+        then zeroHash
+        else hash . BS.concat $ map (toStrict . encode) (toList txs)
+
+blockHash :: Binary a => Block a -> Digest SHA256
+blockHash blk = blockHeaderHash (blockHeader blk)
+
+blockHeaderHash :: BlockHeader -> Digest SHA256
+blockHeaderHash header =
+    hashlazy $ encode header
 
 lastBlock :: Blockchain tx -> Block tx
 lastBlock = NonEmpty.head
@@ -135,7 +151,9 @@ mineBlock
        , MonadMempool tx m
        , MonadBlock tx m
        , MonadEnv tx m
-       , MonadLogger m)
+       , MonadLogger m
+       , MonadTime m
+       , Binary tx )
     => m ()
 mineBlock = do
     txs <- readMempool

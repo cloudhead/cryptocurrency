@@ -6,7 +6,6 @@ import           Crypto.Blockchain.Types
 import           Data.Binary (Binary, encode)
 import           Data.Sequence (Seq)
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
-import qualified Crypto.Hash.Tree as HashTree
 import           Crypto.Number.Serialize (os2ip)
 import           Data.Word (Word32)
 import           Data.ByteString hiding (putStrLn)
@@ -20,7 +19,7 @@ type Timestamp = Word32
 
 data BlockHeader = BlockHeader
     { blockPreviousHash :: Digest SHA256
-    , blockRootHash     :: HashTree.RootHash SHA256
+    , blockRootHash     :: Digest SHA256
     , blockNonce        :: Word32
     , blockDifficulty   :: Difficulty
     , blockTimestamp    :: Timestamp
@@ -32,7 +31,7 @@ instance Eq BlockHeader where
 emptyBlockHeader :: BlockHeader
 emptyBlockHeader = BlockHeader
     { blockPreviousHash = zeroHash
-    , blockRootHash = (HashTree.RootHash 0 zeroHash)
+    , blockRootHash = zeroHash
     , blockNonce = 0
     , blockDifficulty = 0
     , blockTimestamp = 0
