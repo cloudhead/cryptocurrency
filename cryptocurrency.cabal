@@ -24,6 +24,7 @@ library
                      , Crypto.Blockchain.Hash
                      , Crypto.Blockchain.Types
                      , Crypto.Blockchain.Message
+                     , Crypto.Blockchain.Mempool
   build-depends:       base                  >= 4.7 && < 5
                      , cryptonite            == 0.24
                      , fast-logger           == 2.4.10

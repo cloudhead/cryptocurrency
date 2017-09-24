@@ -5,6 +5,7 @@ import           Crypto.Blockchain.Block
 import           Crypto.Blockchain.Types
 import           Crypto.Blockchain.Message (Message)
 import qualified Crypto.Blockchain.Message as Message
+import           Crypto.Blockchain.Mempool
 
 import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 import qualified Crypto.Hash.Tree as HashTree
@@ -104,20 +105,6 @@ blockHash blk =
 
 lastBlock :: Blockchain tx -> Block tx
 lastBlock = NonEmpty.head
-
-newtype Mempool tx = Mempool { fromMempool :: Set tx }
-    deriving (Show, Monoid)
-
-addTx :: Ord tx => tx -> Mempool tx -> Mempool tx
-addTx tx (Mempool txs) = Mempool (Set.insert tx txs)
-
-addTxs :: (Ord tx, Foldable t) => t tx -> Mempool tx -> Mempool tx
-addTxs txs' (Mempool txs) =
-    Mempool $ Set.union txs (Set.fromList (toList txs'))
-
-removeTxs :: (Ord tx, Foldable t) => t tx -> Mempool tx -> Mempool tx
-removeTxs txs' (Mempool txs) =
-    Mempool $ Set.difference (Set.fromList (toList txs')) txs
 
 data Env tx = Env
     { envBlockchain :: TVar (Blockchain tx)
