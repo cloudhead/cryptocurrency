@@ -43,6 +43,7 @@ startNode port peers = do
         broadcast net Message.Ping
         threadDelay $ 1000 * 1000
 
+    syncToCurrentHeight
     concurrently_ (forever mineBlock)
                   (forever (listenForMessage net))
 

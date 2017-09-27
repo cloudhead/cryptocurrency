@@ -185,3 +185,7 @@ processMessage (Message.Block blk) = do
     updateBlockchain blk
 processMessage Message.Ping =
     pure ()
+
+-- | Sync the blockchain to the current height.
+syncToCurrentHeight :: MonadIO m => m ()
+syncToCurrentHeight = undefined
