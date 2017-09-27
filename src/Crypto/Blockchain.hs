@@ -29,15 +29,12 @@ type MonadEnv tx m = MonadReader (Env tx) m
 
 class Alternative m => MonadBlock tx m where
     readBlockchain   :: MonadEnv tx m => m (Blockchain tx)
-    listenForBlock   :: MonadEnv tx m => m (Block tx)
     proposeBlock     :: MonadEnv tx m => Block tx -> m ()
     updateBlockchain :: MonadEnv tx m => Block tx -> m ()
 
 instance MonadBlock tx STM where
     readBlockchain =
         asks envBlockchain >>= readTVar
-    listenForBlock =
-        takeTMVar =<< asks envNewBlocks
     updateBlockchain blk = do
         blks <- asks envBlockchain
         modifyTVar blks (\blks -> blk <| blks)
@@ -125,7 +122,6 @@ lastBlock = NonEmpty.head
 data Env tx = Env
     { envBlockchain :: TVar (Blockchain tx)
     , envMempool    :: TVar (Mempool tx)
-    , envNewBlocks  :: TMVar (Block tx)
     , envLogger     :: Logger
     , envSeen       :: Set (Hashed (Message tx) SHA256)
     }
@@ -134,11 +130,9 @@ newEnv :: Ord tx => Block tx -> STM (Env tx)
 newEnv genesis = do
     bc <- newTVar (genesis :| [])
     mp <- newTVar mempty
-    nb <- newEmptyTMVar
     pure $ Env
         { envBlockchain = bc
         , envMempool    = mp
-        , envNewBlocks  = nb
         , envLogger     = undefined
         , envSeen       = mempty
         }
