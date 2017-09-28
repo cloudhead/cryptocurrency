@@ -15,6 +15,7 @@ import qualified Data.Sequence as Seq
 import           GHC.Generics (Generic)
 
 type Difficulty = Integer
+type Height = Integer
 type Timestamp = Word32
 
 data BlockHeader = BlockHeader
@@ -71,6 +72,10 @@ block xs = validate $
             , blockNonce        = undefined
             }
         (Seq.fromList xs)
+
+adjustedDifficulty :: Height -> Difficulty -> Difficulty
+adjustedDifficulty height startDifficulty =
+    startDifficulty `div` height
 
 genesisDifficulty :: Difficulty
 genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF

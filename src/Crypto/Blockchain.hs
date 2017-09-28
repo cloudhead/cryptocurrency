@@ -13,7 +13,7 @@ import qualified Crypto.Hash.MerkleTree as Merkle
 import           Data.Maybe (fromJust)
 import           Data.Set (Set)
 import qualified Data.Set as Set
-import           Data.Binary (Binary, encode)
+import           Data.Binary (Binary, encode, Word32)
 import           Data.ByteString.Lazy (toStrict)
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -32,6 +32,7 @@ class Alternative m => MonadBlock tx m where
     readBlockchain   :: MonadEnv tx m => m (Blockchain tx)
     proposeBlock     :: MonadEnv tx m => Block tx -> m ()
     updateBlockchain :: MonadEnv tx m => Block tx -> m ()
+    readHeight       :: MonadEnv tx m => m Height
 
 instance MonadBlock tx STM where
     readBlockchain =
@@ -41,6 +42,8 @@ instance MonadBlock tx STM where
         modifyTVar blks (\blks -> blk <| blks)
 
     proposeBlock _ = undefined
+    readHeight = do
+        asks envHeight >>= readTVar
 
 class Ord tx => MonadMempool tx m where
     readMempool   :: MonadEnv tx m => m (Set tx)
@@ -80,28 +83,31 @@ hashValidation target bh =
     digest = hashlazy $ encode bh :: Digest SHA256
 
 proofOfWork :: Monad m => (BlockHeader -> Bool) -> BlockHeader -> m BlockHeader
-proofOfWork validate bh | validate bh =
-    pure bh
-proofOfWork validate bh@BlockHeader { blockNonce } =
-    proofOfWork validate bh { blockNonce = blockNonce + 1 }
-
-hasProofOfWork :: BlockHeader -> Bool
-hasProofOfWork header = True
+proofOfWork validate bh@BlockHeader { blockNonce }
+    | validate bh =
+        pure bh
+    | blockNonce <= (maxBound :: Word32) =
+        proofOfWork validate bh { blockNonce = blockNonce + 1 }
+    | otherwise =
+        proofOfWork validate bh { blockNonce = 0 }
 
 findBlock
     :: (Binary tx, MonadTime m, Foldable t)
     => BlockHeader
+    -> Height
     -> t tx
     -> m (Maybe (Block tx))
-findBlock prevHeader txs = do
+findBlock prevHeader height txs = do
     now <- getTime
-    proofHeader <- proofOfWork hasProofOfWork (newHeader now)
+    proofHeader <- proofOfWork successCondition (newHeader now)
     pure Nothing
   where
+    successCondition header =
+        difficulty header < blockDifficulty header
     newHeader t = BlockHeader
         { blockPreviousHash = blockHeaderHash prevHeader
         , blockRootHash     = txsHash
-        , blockDifficulty   = undefined
+        , blockDifficulty   = adjustedDifficulty height genesisDifficulty
         , blockTimestamp    = t
         , blockNonce        = 0
         }
@@ -126,6 +132,7 @@ lastBlock = NonEmpty.head
 data Env tx = Env
     { envBlockchain :: TVar (Blockchain tx)
     , envMempool    :: TVar (Mempool tx)
+    , envHeight     :: TVar Height
     , envLogger     :: Logger
     , envSeen       :: Set (Hashed (Message tx) SHA256)
     }
@@ -134,8 +141,10 @@ newEnv :: Ord tx => Block tx -> STM (Env tx)
 newEnv genesis = do
     bc <- newTVar (genesis :| [])
     mp <- newTVar mempty
+    eh <- newTVar 0
     pure $ Env
         { envBlockchain = bc
+        , envHeight     = eh
         , envMempool    = mp
         , envLogger     = undefined
         , envSeen       = mempty
@@ -156,7 +165,8 @@ mineBlock
 mineBlock = do
     txs <- readMempool
     blks <- readBlockchain
-    result <- findBlock (blockHeader (lastBlock blks)) txs
+    height <- readHeight
+    result <- findBlock (blockHeader (lastBlock blks)) height txs
     case result of
         Just foundBlock -> do
             proposeBlock foundBlock
