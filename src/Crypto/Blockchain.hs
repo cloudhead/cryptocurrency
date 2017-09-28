@@ -45,7 +45,7 @@ instance MonadBlock tx STM where
 class Ord tx => MonadMempool tx m where
     readMempool   :: MonadEnv tx m => m (Set tx)
     writeMempool  :: MonadEnv tx m => Foldable t => t tx -> m ()
-    updateMempool :: MonadEnv tx m => Foldable t => t tx -> m ()
+    reapMempool   :: MonadEnv tx m => Foldable t => t tx -> m ()
 
 instance Ord tx => MonadMempool tx STM where
     readMempool = do
@@ -54,7 +54,7 @@ instance Ord tx => MonadMempool tx STM where
     writeMempool txs = do
         mp <- asks envMempool
         modifyTVar mp (addTxs txs)
-    updateMempool txs = do
+    reapMempool txs = do
         mp <- asks envMempool
         modifyTVar mp (removeTxs txs)
 
@@ -179,7 +179,7 @@ processMessage (Message.Block blk) = do
     -- else try to update my chain. If the block height isnt my chain's height + 1,
     -- get previous blocks from network and add to my chain. This can happen
     -- if I've been building on the wrong history.
-    updateMempool (blockData blk)
+    reapMempool (blockData blk)
     updateBlockchain blk
 processMessage Message.Ping =
     pure ()
