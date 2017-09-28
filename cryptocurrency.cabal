@@ -33,6 +33,7 @@ library
                      , pipes-network         == 0.6.4.1
                      , mtl                   == 2.2.1
                      , monad-logger          == 0.3.25.1
+                     , merkle-tree           == 0.1.0
                      , network               == 2.6.3.2
                      , network-simple        == 0.4.0.5
                      , binary                == 0.8.5.1

@@ -2,6 +2,10 @@ resolver: nightly-2017-09-20
 
 packages:
   - '.'
+  - location:
+      git: git@github.com:adjoint-io/merkle-tree
+      commit: a942ee26f56d24473757af5d1bda48c39b2ebd44
+    extra-dep: true
 
 extra-deps:
   - pipes-network-0.6.4.1

@@ -7,13 +7,14 @@ import           Crypto.Blockchain.Message (Message)
 import qualified Crypto.Blockchain.Message as Message
 import           Crypto.Blockchain.Mempool
 
-import           Crypto.Hash (Digest, SHA256(..), hash, hashlazy)
+import           Crypto.Hash (Digest, SHA256(..), hashlazy, digestFromByteString)
+import qualified Crypto.Hash.MerkleTree as Merkle
 
+import           Data.Maybe (fromJust)
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Binary (Binary, encode)
 import           Data.ByteString.Lazy (toStrict)
-import qualified Data.ByteString as BS
 import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
@@ -107,7 +108,10 @@ findBlock prevHeader txs = do
     txsHash =
         if   null txs
         then zeroHash
-        else hash . BS.concat $ map (toStrict . encode) (toList txs)
+        else fromJust . digestFromByteString
+                      . Merkle.mtHash
+                      . Merkle.mkMerkleTree
+                      $ map (toStrict . encode) (toList txs)
 
 blockHash :: Binary a => Block a -> Digest SHA256
 blockHash blk = blockHeaderHash (blockHeader blk)
