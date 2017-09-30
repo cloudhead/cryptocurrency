@@ -112,10 +112,10 @@ proofOfWork validate bh@BlockHeader { blockNonce }
 findBlock
     :: (Binary tx, MonadTime m, Foldable t)
     => BlockHeader
-    -> Height
+    -> Difficulty
     -> t tx
     -> m (Maybe (Block tx))
-findBlock prevHeader height txs = do
+findBlock prevHeader target txs = do
     now <- getTime
     proofHeader <- proofOfWork successCondition (newHeader now)
     pure Nothing
@@ -125,7 +125,7 @@ findBlock prevHeader height txs = do
     newHeader t = BlockHeader
         { blockPreviousHash = blockHeaderHash prevHeader
         , blockRootHash     = txsHash
-        , blockDifficulty   = adjustedDifficulty height genesisDifficulty
+        , blockDifficulty   = target
         , blockTimestamp    = t
         , blockNonce        = 0
         }
@@ -182,8 +182,8 @@ mineBlock
 mineBlock = do
     txs <- readMempool
     blks <- readBlockchain
-    height <- readHeight
-    result <- findBlock (blockHeader (lastBlock blks)) height txs
+    result <- findBlock (blockHeader (lastBlock blks))
+                        (calculateDifficulty blks) txs
     case result of
         Just foundBlock -> do
             proposeBlock foundBlock
