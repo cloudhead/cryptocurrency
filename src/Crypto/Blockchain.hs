@@ -82,6 +82,24 @@ hashValidation target bh =
   where
     digest = hashlazy $ encode bh :: Digest SHA256
 
+calculateDifficulty :: Blockchain tx -> Difficulty
+calculateDifficulty blks =
+    if   length range < blocksConsidered
+    then genesisDifficulty
+    else currentDifficulty * targetElapsed `div` toInteger actualElapsed
+  where
+    range             = NonEmpty.take blocksConsidered blks
+    rangeStart        = blockHeader $ NonEmpty.last (NonEmpty.head blks :| tail range)
+    rangeEnd          = blockHeader $ NonEmpty.head blks
+    actualElapsed     = blockTimestamp rangeEnd - blockTimestamp rangeStart
+    targetElapsed     = fromIntegral $ blocksConsidered * blockTimeSeconds
+    blocksConsidered  = timePeriodMinutes `div` blockTimeMinutes
+    timePeriodMinutes = timePeriodDays * 24 * 60
+    timePeriodDays    = 2 * 7 -- Two weeks.
+    blockTimeMinutes  = 10
+    blockTimeSeconds  = blockTimeMinutes * 60
+    currentDifficulty = blockDifficulty rangeEnd
+
 proofOfWork :: Monad m => (BlockHeader -> Bool) -> BlockHeader -> m BlockHeader
 proofOfWork validate bh@BlockHeader { blockNonce }
     | validate bh =
