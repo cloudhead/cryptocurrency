@@ -78,7 +78,8 @@ adjustedDifficulty height startDifficulty =
     startDifficulty `div` height
 
 genesisDifficulty :: Difficulty
-genesisDifficulty = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+genesisDifficulty =
+    0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 genesisBlock :: [a] -> Either Error (Block a)
 genesisBlock xs = validate $
