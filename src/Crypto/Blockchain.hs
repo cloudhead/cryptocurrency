@@ -172,8 +172,7 @@ messageIsNew :: Binary tx => Message tx -> Set (Hashed (Message tx) SHA256) -> B
 messageIsNew msg = not . Set.member (hashed msg)
 
 mineBlock
-    :: ( MonadIO m
-       , MonadMempool tx m
+    :: ( MonadMempool tx m
        , MonadBlock tx m
        , MonadEnv tx m
        , MonadLogger m
@@ -196,8 +195,7 @@ processMessage
     :: ( MonadLogger m
        , MonadMempool tx m
        , MonadBlock tx m
-       , MonadEnv tx m
-       , MonadIO m )
+       , MonadEnv tx m )
     => Message tx
     -> m ()
 processMessage (Message.Tx tx) = do
