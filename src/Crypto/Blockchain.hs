@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 module Crypto.Blockchain where
 
 import           Crypto.Blockchain.Log
@@ -24,26 +25,29 @@ import           Control.Monad.Logger
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM
 import           Control.Applicative (Alternative)
+import           GHC.Records
 
 type Blockchain tx = NonEmpty (Block tx)
 type MonadEnv tx m = MonadReader (Env tx) m
+type HasBlocks r tx = HasField "envBlockchain" r (TVar (Blockchain tx))
+type HasHeight r = HasField "envHeight" r (TVar Height)
 
 class Alternative m => MonadBlock tx m where
-    readBlockchain   :: MonadEnv tx m => m (Blockchain tx)
-    proposeBlock     :: MonadEnv tx m => Block tx -> m ()
-    updateBlockchain :: MonadEnv tx m => Block tx -> m ()
-    readHeight       :: MonadEnv tx m => m Height
+    readBlockchain   :: (HasBlocks r tx, MonadReader r m) => m (Blockchain tx)
+    proposeBlock     :: (HasBlocks r tx, MonadReader r m) => Block tx -> m ()
+    updateBlockchain :: (HasBlocks r tx, MonadReader r m) => Block tx -> m ()
+    readHeight       :: (HasHeight r, MonadReader r m, tx ~ ()) => m Height
 
 instance MonadBlock tx STM where
     readBlockchain =
-        asks envBlockchain >>= readTVar
+        asks (getField @"envBlockchain") >>= readTVar
     updateBlockchain blk = do
-        blks <- asks envBlockchain
+        blks <- asks (getField @"envBlockchain")
         modifyTVar blks (\blks -> blk <| blks)
 
     proposeBlock _ = undefined
-    readHeight = do
-        asks envHeight >>= readTVar
+    readHeight =
+        asks (getField @"envHeight") >>= readTVar
 
 class Ord tx => MonadMempool tx m where
     readMempool   :: MonadEnv tx m => m (Set tx)
