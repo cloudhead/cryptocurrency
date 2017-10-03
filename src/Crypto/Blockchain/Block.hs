@@ -5,10 +5,11 @@ import           Crypto.Blockchain.Types
 
 import           Data.Binary (Binary, encode)
 import           Data.Sequence (Seq)
+import           Data.Foldable (toList)
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Number.Serialize (os2ip)
 import           Data.Word (Word32)
-import           Data.ByteString hiding (putStrLn)
+import           Data.ByteString hiding (putStrLn, pack)
 import           Data.ByteArray (zero)
 import           Data.Maybe (fromJust)
 import qualified Data.Sequence as Seq
@@ -81,8 +82,8 @@ genesisDifficulty :: Difficulty
 genesisDifficulty =
     0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-genesisBlock :: [a] -> Either Error (Block a)
-genesisBlock xs = validate $
+genesisBlock :: Foldable t => t tx -> Block tx
+genesisBlock xs =
     Block
         BlockHeader
             { blockPreviousHash = zeroHash
@@ -91,7 +92,7 @@ genesisBlock xs = validate $
             , blockRootHash     = undefined
             , blockNonce        = 0
             }
-        (Seq.fromList xs)
+        (Seq.fromList (toList xs))
 
 isGenesisBlock :: Block a -> Bool
 isGenesisBlock blk =

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 module Crypto.Blockchain where
 
 import           Crypto.Blockchain.Log
@@ -28,6 +29,7 @@ import           Control.Applicative (Alternative)
 import           GHC.Records
 
 type Blockchain tx = NonEmpty (Block tx)
+
 type MonadEnv tx m = MonadReader (Env tx) m
 type HasBlocks r tx = HasField "envBlockchain" r (TVar (Blockchain tx))
 type HasHeight r = HasField "envHeight" r (TVar Height)

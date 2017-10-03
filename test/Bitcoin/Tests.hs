@@ -13,10 +13,15 @@ import Test.Tasty.HUnit
 import Control.Monad
 import Data.Either (isRight)
 
+import Crypto.Blockchain.Test.Arbitrary
+import Bitcoin.Test.Arbitrary
+import Test.QuickCheck
+
 tests :: TestTree
 tests = testGroup "Bitcoin tests"
     [ testCase "Bitcoin" testBitcoin
-    , testCase "Blockchain" testBlockchain ]
+    , testCase "Blockchain" testBlockchain
+    , testCase "Blockchain Difficulty" testBlockchainDifficulty ]
 
 testBlockchain :: Assertion
 testBlockchain = do
@@ -25,7 +30,7 @@ testBlockchain = do
 
     chain <- pure $ do
         cb  <- coinbase [(toAddress pk, 1000)]
-        gen <- genesisBlock [cb]
+        gen <- Right $ genesisBlock [cb]
         blk <- block <=< sequence $
             [ transaction [utxo cb 0]
                 [ (toAddress pk', 600)
@@ -35,6 +40,11 @@ testBlockchain = do
         blockchain [gen, blk]
 
     isRight chain @? "Blockchain is valid"
+
+testBlockchainDifficulty :: Assertion
+testBlockchainDifficulty = do
+    genesis <- generate arbitrary :: IO (Block Tx')
+    pure ()
 
 testBitcoin :: Assertion
 testBitcoin = do
