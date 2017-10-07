@@ -88,8 +88,10 @@ test-suite bitcoin-test
                      , Crypto.Blockchain.Test.Arbitrary
   build-depends:       base
                      , bytestring            == 0.10.8.2
+                     , binary
                      , cryptocurrency
                      , cryptonite            == 0.24
+                     , containers
                      , tasty
                      , tasty-hunit
                      , QuickCheck

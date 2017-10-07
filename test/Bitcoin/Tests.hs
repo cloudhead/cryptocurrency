@@ -43,7 +43,7 @@ testBlockchain = do
 
 testBlockchainDifficulty :: Assertion
 testBlockchainDifficulty = do
-    genesis <- generate arbitrary :: IO (Block Tx')
+    blks <- generate arbitraryBlockchain' :: IO (Blockchain Tx')
     pure ()
 
 testBitcoin :: Assertion

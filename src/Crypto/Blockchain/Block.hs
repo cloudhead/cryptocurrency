@@ -78,6 +78,10 @@ adjustedDifficulty :: Height -> Difficulty -> Difficulty
 adjustedDifficulty height startDifficulty =
     startDifficulty `div` height
 
+minDifficulty :: Difficulty
+minDifficulty =
+    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+
 genesisDifficulty :: Difficulty
 genesisDifficulty =
     0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF

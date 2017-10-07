@@ -105,6 +105,7 @@ calculateDifficulty blks =
     blockTimeMinutes  = 10
     blockTimeSeconds  = blockTimeMinutes * 60
     currentDifficulty = blockDifficulty rangeEnd
+    genesisDifficulty = blockDifficulty . blockHeader $ NonEmpty.last blks
 
 proofOfWork :: Monad m => (BlockHeader -> Bool) -> BlockHeader -> m BlockHeader
 proofOfWork validate bh@BlockHeader { blockNonce }
@@ -130,18 +131,20 @@ findBlock prevHeader target txs = do
         difficulty header < blockDifficulty header
     newHeader t = BlockHeader
         { blockPreviousHash = blockHeaderHash prevHeader
-        , blockRootHash     = txsHash
+        , blockRootHash     = hashTxs txs
         , blockDifficulty   = target
         , blockTimestamp    = t
         , blockNonce        = 0
         }
-    txsHash =
-        if   null txs
-        then zeroHash
-        else fromJust . digestFromByteString
-                      . Merkle.mtHash
-                      . Merkle.mkMerkleTree
-                      $ map (toStrict . encode) (toList txs)
+
+hashTxs :: (Foldable t, Binary tx) => t tx -> Digest SHA256
+hashTxs txs
+  | null txs = zeroHash
+  | otherwise =
+    fromJust . digestFromByteString
+             . Merkle.mtHash
+             . Merkle.mkMerkleTree
+             $ map (toStrict . encode) (toList txs)
 
 blockHash :: Binary a => Block a -> Digest SHA256
 blockHash blk = blockHeaderHash (blockHeader blk)
