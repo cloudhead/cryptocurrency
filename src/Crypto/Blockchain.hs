@@ -13,7 +13,11 @@ import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import           Data.Foldable (toList)
 import           Data.Binary (Binary, encode, Word32)
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Base16 as Base16
+import           Data.ByteArray (ByteArrayAccess, convert)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Data.Time.Clock.POSIX
@@ -22,6 +26,7 @@ import           Control.Monad.Logger
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM
 import           Control.Applicative (Alternative)
+import           Text.Printf
 import           GHC.Records
 
 type Blockchain tx = NonEmpty (Block tx)
@@ -211,3 +216,26 @@ processMessage Message.Ping =
 -- | Sync the blockchain to the current height.
 syncToCurrentHeight :: MonadIO m => m ()
 syncToCurrentHeight = undefined
+
+toHex :: ByteArrayAccess ba => ba -> String
+toHex bs =
+    BS.unpack $ Base16.encode $ convert bs
+
+printBlockchain :: Binary tx => Blockchain tx -> IO ()
+printBlockchain (NonEmpty.toList -> blks) = do
+    printf "\n"
+    forM_ (zip heights blks) $ \(h, Block bh@BlockHeader{..} txs) -> do
+        printf "┍━━━ %d ━━━ %s ━━━┑\n" (h :: Int) (toHex $ blockHeaderHash bh)
+        printf "│ prevHash:   %-64s │\n" (toHex blockPreviousHash)
+        printf "│ timestamp:  %-64d │\n" blockTimestamp
+        printf "│ rootHash:   %-64s │\n" (BS.unpack blockRootHash)
+        printf "│ difficulty: %064x │\n" (blockDifficulty)
+        printf "│ nonce:      %-64d │\n" blockNonce
+        printf "├────────%s─────────┤\n" (replicate 61 '─')
+
+        forM_ (zip [0..length txs] (toList txs)) $ \(n, tx) ->
+            printf "│ %03d:  %-64s       │\n" n (toHex $ hashTx tx)
+
+        printf "└────────%s─────────┘\n" (replicate 61 '─')
+  where
+    heights = reverse [0..length blks - 1]

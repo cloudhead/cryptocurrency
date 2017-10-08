@@ -5,7 +5,6 @@ import           Crypto.Blockchain
 import           Crypto.Blockchain.Block
 import           Crypto.Hash
 
-import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Data.Maybe (fromJust)
 import qualified Data.ByteString as BS
@@ -49,7 +48,7 @@ arbitraryBlock' :: forall tx. (Binary tx, Arbitrary tx) => Blockchain tx -> Gen 
 arbitraryBlock' blks@((Block prevHeader _) :| rest) = do
     elapsed <- choose (9, 11)
     txs <- arbitrary :: Gen [tx]
-    header <- pure BlockHeader
+    header <- findPoW BlockHeader
         { blockPreviousHash = blockHeaderHash prevHeader
         , blockRootHash     = hashTxs txs
         , blockDifficulty   = calculateDifficulty blks
@@ -68,7 +67,7 @@ arbitraryGenesis = do
 arbitraryBlockchain' :: forall tx. (Binary tx, Arbitrary tx) => Gen (Blockchain tx)
 arbitraryBlockchain' = do
     gen <- arbitraryGenesis :: (Gen (Block tx))
-    height <- choose (3, 4) :: Gen Int
+    height <- choose (8, 9) :: Gen Int
     go (gen :| []) height
   where
     go blks 0 =

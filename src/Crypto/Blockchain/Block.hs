@@ -12,7 +12,7 @@ import qualified Crypto.Hash.MerkleTree as Merkle
 import           Data.Word (Word32)
 import           Data.ByteString (ByteString)
 import           Data.ByteString.Lazy (toStrict)
-import           Data.ByteArray (zero, convert)
+import           Data.ByteArray (zero)
 import           Data.Maybe (fromJust)
 import qualified Data.Sequence as Seq
 import           GHC.Generics (Generic)
@@ -82,7 +82,7 @@ adjustedDifficulty height startDifficulty =
 
 minDifficulty :: Difficulty
 minDifficulty =
-    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    0x0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 genesisDifficulty :: Difficulty
 genesisDifficulty =
@@ -112,3 +112,6 @@ hashTxs txs
       . Merkle.mkMerkleTree
       $ map (toStrict . encode) (toList txs)
 
+hashTx :: Binary tx => tx -> Digest SHA256
+hashTx tx =
+    hashlazy (encode tx)

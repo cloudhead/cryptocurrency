@@ -15,7 +15,7 @@ import Data.Either (isRight)
 import GHC.Stack
 
 import Crypto.Blockchain.Test.Arbitrary
-import Bitcoin.Test.Arbitrary
+import Bitcoin.Test.Arbitrary ()
 import Test.QuickCheck
 
 tests :: TestTree
@@ -43,9 +43,10 @@ testBlockchain = do
 
     isRight chain @? "Blockchain is valid"
 
-testBlockchainDifficulty :: Assertion
+testBlockchainDifficulty :: HasCallStack => Assertion
 testBlockchainDifficulty = do
     blks <- generate arbitraryBlockchain' :: IO (Blockchain Tx')
+    printBlockchain blks
     pure ()
 
 testBitcoin :: Assertion

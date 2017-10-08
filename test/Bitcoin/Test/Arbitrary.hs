@@ -1,13 +1,10 @@
 module Bitcoin.Test.Arbitrary where
 
-import Bitcoin
 import Bitcoin.Tx
-import Bitcoin.Types
 import Bitcoin.Crypto
 
-import Crypto.Blockchain.Test.Arbitrary
+import Crypto.Blockchain.Test.Arbitrary ()
 import Test.QuickCheck
-import Data.ByteString
 import Crypto.Random
 
 instance Arbitrary PublicKey where
