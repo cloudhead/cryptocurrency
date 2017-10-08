@@ -8,9 +8,11 @@ import           Data.Sequence (Seq)
 import           Data.Foldable (toList)
 import           Crypto.Hash (Digest, SHA256(..), HashAlgorithm, hashlazy, digestFromByteString, hashDigestSize)
 import           Crypto.Number.Serialize (os2ip)
+import qualified Crypto.Hash.MerkleTree as Merkle
 import           Data.Word (Word32)
-import           Data.ByteString hiding (putStrLn, pack)
-import           Data.ByteArray (zero)
+import           Data.ByteString (ByteString)
+import           Data.ByteString.Lazy (toStrict)
+import           Data.ByteArray (zero, convert)
 import           Data.Maybe (fromJust)
 import qualified Data.Sequence as Seq
 import           GHC.Generics (Generic)
@@ -21,7 +23,7 @@ type Timestamp = Word32
 
 data BlockHeader = BlockHeader
     { blockPreviousHash :: Digest SHA256
-    , blockRootHash     :: Digest SHA256
+    , blockRootHash     :: ByteString -- TODO: Should be Digest.
     , blockNonce        :: Word32
     , blockDifficulty   :: Difficulty
     , blockTimestamp    :: Timestamp
@@ -33,7 +35,7 @@ instance Eq BlockHeader where
 emptyBlockHeader :: BlockHeader
 emptyBlockHeader = BlockHeader
     { blockPreviousHash = zeroHash
-    , blockRootHash = zeroHash
+    , blockRootHash = zero 32
     , blockNonce = 0
     , blockDifficulty = 0
     , blockTimestamp = 0
@@ -86,14 +88,14 @@ genesisDifficulty :: Difficulty
 genesisDifficulty =
     0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-genesisBlock :: Foldable t => t tx -> Block tx
-genesisBlock xs =
+genesisBlock :: (Binary tx, Foldable t) => Timestamp -> t tx -> Block tx
+genesisBlock timestamp xs =
     Block
         BlockHeader
             { blockPreviousHash = zeroHash
             , blockDifficulty   = genesisDifficulty
-            , blockTimestamp    = undefined
-            , blockRootHash     = undefined
+            , blockTimestamp    = timestamp
+            , blockRootHash     = hashTxs xs
             , blockNonce        = 0
             }
         (Seq.fromList (toList xs))
@@ -101,4 +103,12 @@ genesisBlock xs =
 isGenesisBlock :: Block a -> Bool
 isGenesisBlock blk =
     (blockPreviousHash . blockHeader) blk == zeroHash
+
+hashTxs :: (Foldable t, Binary tx) => t tx -> ByteString
+hashTxs txs
+  | Prelude.null txs = zero 32
+  | otherwise =
+        Merkle.mtHash
+      . Merkle.mkMerkleTree
+      $ map (toStrict . encode) (toList txs)
 

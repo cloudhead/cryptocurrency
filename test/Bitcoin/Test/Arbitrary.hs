@@ -8,14 +8,13 @@ import Bitcoin.Crypto
 import Crypto.Blockchain.Test.Arbitrary
 import Test.QuickCheck
 import Data.ByteString
+import Crypto.Random
 
 instance Arbitrary PublicKey where
-    arbitrary = undefined
-
-instance Arbitrary Signature where
     arbitrary = do
-        bs <- arbitrary :: Gen ByteString
-        pure bs
+        [a, b, c, d, e] <- vectorOf 5 arbitrary
+        let drg = drgNewTest (a, b, c, d, e)
+        pure . fst . fst $ withDRG drg generateKeyPair
 
 instance Arbitrary Address where
     arbitrary = do

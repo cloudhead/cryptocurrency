@@ -12,6 +12,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Control.Monad
 import Data.Either (isRight)
+import GHC.Stack
 
 import Crypto.Blockchain.Test.Arbitrary
 import Bitcoin.Test.Arbitrary
@@ -27,10 +28,11 @@ testBlockchain :: Assertion
 testBlockchain = do
     alice@(pk, sk) <- generateKeyPair
     bob@(pk', sk') <- generateKeyPair
+    now <- getTime
 
     chain <- pure $ do
         cb  <- coinbase [(toAddress pk, 1000)]
-        gen <- Right $ genesisBlock [cb]
+        gen <- Right $ genesisBlock now [cb]
         blk <- block <=< sequence $
             [ transaction [utxo cb 0]
                 [ (toAddress pk', 600)

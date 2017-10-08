@@ -8,17 +8,24 @@ import           Crypto.Hash
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Data.Maybe (fromJust)
-import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString as BS
 import qualified Data.Sequence as Seq
 import           Data.Binary (Binary)
+import           Data.Word (Word8)
+import           Control.Monad (replicateM)
 
 import           Test.QuickCheck
 
-instance Arbitrary tx => Arbitrary (Block tx) where
+instance Arbitrary BS.ByteString where
+    arbitrary = do
+        str <- arbitrary
+        pure $ BS.pack str
+
+instance (Arbitrary tx, Binary tx) => Arbitrary (Block tx) where
     arbitrary =
         Block <$> arbitrary <*> arbitrary
 
-instance Arbitrary tx => Arbitrary (Blockchain tx) where
+instance (Arbitrary tx, Binary tx) => Arbitrary (Blockchain tx) where
     arbitrary = do
         genesis <- arbitraryGenesis
         rest <- arbitrary :: Gen [Block tx]
@@ -26,8 +33,8 @@ instance Arbitrary tx => Arbitrary (Blockchain tx) where
 
 instance Arbitrary (Digest SHA256) where
     arbitrary = do
-        str <- arbitrary
-        pure . fromJust $ digestFromByteString (Char8.pack str)
+        str <- replicateM 32 (arbitrary :: Gen Word8)
+        pure . fromJust $ digestFromByteString (BS.pack str)
 
 instance Arbitrary BlockHeader where
     arbitrary =
@@ -51,21 +58,21 @@ arbitraryBlock' blks@((Block prevHeader _) :| rest) = do
         }
     pure $ Block header (Seq.fromList txs)
 
-arbitraryGenesis :: forall tx. Arbitrary tx => Gen (Block tx)
+arbitraryGenesis :: forall tx. (Binary tx, Arbitrary tx) => Gen (Block tx)
 arbitraryGenesis = do
-    txs <- arbitrary :: Gen [tx]
-    g <- pure $ genesisBlock txs
+    txs <- resize 20 $ arbitrary :: Gen [tx]
+    g <- genesisBlock <$> arbitrary <*> pure txs
     pure $ g { blockHeader = (blockHeader g) { blockDifficulty = minDifficulty } }
 
 -- | Generate a *valid* arbitrary blockchain.
 arbitraryBlockchain' :: forall tx. (Binary tx, Arbitrary tx) => Gen (Blockchain tx)
 arbitraryBlockchain' = do
     gen <- arbitraryGenesis :: (Gen (Block tx))
-    height <- choose (32, 64) :: Gen Int
+    height <- choose (3, 4) :: Gen Int
     go (gen :| []) height
   where
     go blks 0 =
         pure blks
-    go (prevBlk :| rest) n = do
-        blk <- arbitraryBlock' (prevBlk :| rest)
-        go (blk :| prevBlk : rest) (n - 1)
+    go blks n = do
+        blk <- arbitraryBlock' blks
+        go (blk <| blks) (n - 1)

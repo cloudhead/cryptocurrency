@@ -9,15 +9,11 @@ import           Crypto.Blockchain.Message (Message)
 import qualified Crypto.Blockchain.Message as Message
 import           Crypto.Blockchain.Mempool
 
-import           Crypto.Hash (Digest, SHA256(..), hashlazy, digestFromByteString)
-import qualified Crypto.Hash.MerkleTree as Merkle
+import           Crypto.Hash (Digest, SHA256(..), hashlazy)
 
-import           Data.Maybe (fromJust)
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Binary (Binary, encode, Word32)
-import           Data.ByteString.Lazy (toStrict)
-import           Data.Foldable (toList)
 import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Data.Time.Clock.POSIX
@@ -107,14 +103,18 @@ calculateDifficulty blks =
     currentDifficulty = blockDifficulty rangeEnd
     genesisDifficulty = blockDifficulty . blockHeader $ NonEmpty.last blks
 
-proofOfWork :: Monad m => (BlockHeader -> Bool) -> BlockHeader -> m BlockHeader
-proofOfWork validate bh@BlockHeader { blockNonce }
-    | validate bh =
+hasPoW :: BlockHeader -> Bool
+hasPoW header =
+    difficulty header < blockDifficulty header
+
+findPoW :: Monad m => BlockHeader -> m BlockHeader
+findPoW bh@BlockHeader { blockNonce }
+    | hasPoW bh =
         pure bh
     | blockNonce <= (maxBound :: Word32) =
-        proofOfWork validate bh { blockNonce = blockNonce + 1 }
+        findPoW bh { blockNonce = blockNonce + 1 }
     | otherwise =
-        proofOfWork validate bh { blockNonce = 0 }
+        findPoW bh { blockNonce = 0 }
 
 findBlock
     :: (Binary tx, MonadTime m, Foldable t)
@@ -124,11 +124,9 @@ findBlock
     -> m (Maybe (Block tx))
 findBlock prevHeader target txs = do
     now <- getTime
-    proofHeader <- proofOfWork successCondition (newHeader now)
+    proofHeader <- findPoW (newHeader now)
     pure Nothing
   where
-    successCondition header =
-        difficulty header < blockDifficulty header
     newHeader t = BlockHeader
         { blockPreviousHash = blockHeaderHash prevHeader
         , blockRootHash     = hashTxs txs
@@ -136,15 +134,6 @@ findBlock prevHeader target txs = do
         , blockTimestamp    = t
         , blockNonce        = 0
         }
-
-hashTxs :: (Foldable t, Binary tx) => t tx -> Digest SHA256
-hashTxs txs
-  | null txs = zeroHash
-  | otherwise =
-    fromJust . digestFromByteString
-             . Merkle.mtHash
-             . Merkle.mkMerkleTree
-             $ map (toStrict . encode) (toList txs)
 
 blockHash :: Binary a => Block a -> Digest SHA256
 blockHash blk = blockHeaderHash (blockHeader blk)

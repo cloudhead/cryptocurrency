@@ -26,4 +26,3 @@ generateKeyPair :: MonadRandom m => m (PublicKey, PrivateKey)
 generateKeyPair = do
     (pk, sk) <- generate (getCurveByName SEC_p256k1)
     pure (pk, sk)
-
