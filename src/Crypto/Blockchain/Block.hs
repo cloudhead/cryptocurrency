@@ -52,13 +52,25 @@ instance (Binary a) => Binary (Block a)
 deriving instance Eq a => Eq (Block a)
 
 instance Validate (Block a) where
-    validate = validateBlock
+    validate blk = case validateBlock blk of
+        Left err -> Left err
+        Right () -> Right blk
 
-validateBlock :: Block a -> Either Error (Block a)
-validateBlock blk = Right blk
+validateBlock :: Block tx -> Either Error ()
+validateBlock blk
+    | not . hasPoW $ blockHeader blk =
+        Left (Error "block does not contain sufficient proof of work")
+    | null (blockData blk) =
+        Left (Error "block data is null")
+    | otherwise =
+        Right ()
 
 difficulty :: BlockHeader -> Difficulty
 difficulty bh = os2ip (hashlazy $ encode bh :: Digest SHA256)
+
+hasPoW :: BlockHeader -> Bool
+hasPoW header =
+    difficulty header < blockDifficulty header
 
 zeroHash :: HashAlgorithm a => Digest a
 zeroHash = fromJust $

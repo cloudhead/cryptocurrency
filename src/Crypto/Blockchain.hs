@@ -22,7 +22,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import           Data.List.NonEmpty (NonEmpty((:|)), (<|))
 import           Data.Time.Clock.POSIX
 import           Control.Monad.Reader
-import           Control.Monad.Logger
+import           Control.Monad.Logger (MonadLogger)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM
 import           Control.Applicative (Alternative)
@@ -75,10 +75,26 @@ instance MonadTime IO where
     getTime = round <$> getPOSIXTime
 
 instance Validate (Blockchain a) where
-    validate = validateBlockchain
+    validate blks = case validateBlockchain blks of
+        Left err -> Left err
+        Right () -> Right blks
 
-validateBlockchain :: Blockchain a -> Either Error (Blockchain a)
-validateBlockchain bc = Right bc
+validateBlockchain :: Blockchain tx -> Either Error ()
+validateBlockchain (blk :| []) =
+    validateBlock blk
+validateBlockchain (blk :| blk' : blks)
+    | blockPreviousHash (blockHeader blk) /= blockHeaderHash (blockHeader blk') =
+        Left (Error "previous hash does not match")
+    | t < t' =
+        Left (Error "block timestamp is in the past")
+    | t - t' > 2 * hours =
+        Left (Error "block timestamp should be less than two hours in future")
+    | otherwise =
+        validateBlock blk *> validateBlockchain (blk' :| blks)
+  where
+    t  = blockTimestamp (blockHeader blk)
+    t' = blockTimestamp (blockHeader blk')
+    hours = 3600
 
 blockchain :: [Block a] -> Either Error (Blockchain a)
 blockchain blks = validate $ NonEmpty.fromList blks
@@ -107,10 +123,6 @@ calculateDifficulty blks =
     blockTimeSeconds  = blockTimeMinutes * 60
     currentDifficulty = blockDifficulty rangeEnd
     genesisDifficulty = blockDifficulty . blockHeader $ NonEmpty.last blks
-
-hasPoW :: BlockHeader -> Bool
-hasPoW header =
-    difficulty header < blockDifficulty header
 
 findPoW :: Monad m => BlockHeader -> m BlockHeader
 findPoW bh@BlockHeader { blockNonce }
